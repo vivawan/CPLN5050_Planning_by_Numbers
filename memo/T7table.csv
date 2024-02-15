@@ -1,0 +1,16 @@
+"income_quartile","aveprop_quartile","n","sum_byincome","per_aveprop_quartile"
+"1st Quartile","1st Quartile",84,108,0.777777777777778
+"1st Quartile","2nd Quartile",17,108,0.157407407407407
+"1st Quartile","3rd Quartile",6,108,0.0555555555555556
+"1st Quartile","4th Quartile",1,108,0.00925925925925926
+"2nd Quartile","1st Quartile",21,107,0.196261682242991
+"2nd Quartile","2nd Quartile",55,107,0.514018691588785
+"2nd Quartile","3rd Quartile",27,107,0.252336448598131
+"2nd Quartile","4th Quartile",4,107,0.0373831775700935
+"3rd Quartile","1st Quartile",3,107,0.0280373831775701
+"3rd Quartile","2nd Quartile",30,107,0.280373831775701
+"3rd Quartile","3rd Quartile",51,107,0.476635514018692
+"3rd Quartile","4th Quartile",23,107,0.214953271028037
+"4th Quartile","2nd Quartile",5,108,0.0462962962962963
+"4th Quartile","3rd Quartile",23,108,0.212962962962963
+"4th Quartile","4th Quartile",80,108,0.740740740740741

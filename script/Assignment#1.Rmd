@@ -1,0 +1,334 @@
+---
+title: "505_Assignment#1"
+author: "Viva"
+date: "`r Sys.Date()`"
+output: 
+ html_document:
+    keep_md: yes
+    toc: yes
+    theme: flatly
+    toc_float: yes
+    code_folding: hide
+    number_sections: no
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+options(scipen=999)
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	cache = TRUE
+)
+
+if(!require(pacman)){install.packages("pacman"); library(pacman)}
+p_load(tidyverse, sf, units, nngeo, tmap, tinytex, kableExtra, ggplot2, janitor, patchwork, here, tidycensus, lwgeom,lsr,haven,descr)
+
+
+load(here::here("data/raw/cpln505_assignment1_data.Rda"))
+sch <- st_read(here::here("data/raw/cpln505_assignment1_driving_schools.shp"),
+                  quiet = TRUE)
+
+
+```
+
+# task1: categorize
+```{r task1}
+
+ct <- dtd %>%
+  mutate(per_poverty = below_poverty/total_population,
+         type = ifelse(
+           per_poverty >= median(per_poverty) & travel_time >= median(travel_time),
+                       "DTD", "DTO"))
+
+ct_type <- ct%>%
+  count(type)
+```
+
+# task2: mapping
+```{r task2, echo=FALSE}
+# transform the projection system
+sch <- sch %>%
+  mutate(legend = "Schools")%>%
+  st_transform(st_crs(ct))
+    
+
+ggplot()+
+  geom_sf(data = ct, 
+          aes(fill = type),
+          show.legend = "squares", 
+          size = 2)+
+  scale_fill_manual(values = c("red","green"), 
+                    name = "Census Tracts")+
+  geom_sf(data = sch,
+          shape = 21,
+          color = "grey",
+          fill = "white",
+          size = 1)+
+  scale_color_manual(values = c("Schools" = "grey"), name = "Legend")+
+  labs(title = "DTDs and DTOs and Driving Schools")+
+  theme_void()
+
+### how to add legend of the schools?
+```
+Spatial Pattern: DTOs are census tracts with driving schools either inside or nearby, while DTDs are areas that are distant from driving schools. Most DTDs are located at the marginal corners of Columbus, Ohio metro area.
+
+# task3: calculation
+```{r task3}
+ct <- ct %>%
+  mutate(pop_density = total_population/area_sq_mi,
+         rate_vehicle = 1-zero_veh_hh/total_households,
+         per_nonwhite = 1- whites/total_population)
+```
+
+# task4: summary table
+```{r task4}
+table <- ct %>%
+  as_tibble()%>%
+  select(-geometry)%>%
+  group_by(type)%>%
+  summarize(max_tratime = max(travel_time),
+            min_tratime = min(travel_time),
+            ave_tratime = mean(travel_time),
+            sd_tratime = sd(travel_time),
+            max_income = max(income),
+            min_income = min(income),
+            ave_income = mean(income),
+            sd_income = sd(income),
+            max_poverty = max(per_poverty),
+            min_poverty = min(per_poverty),
+            ave_poverty = mean(per_poverty),
+            sd_poverty = sd(per_poverty),
+            max_popden = max(pop_density),
+            min_popden = min(pop_density),
+            ave_popden = mean(pop_density),
+            sd_popden = sd(pop_density),
+            max_rateveh = max(rate_vehicle),
+            min_rateveh = min(rate_vehicle),
+            ave_rateveh = mean(rate_vehicle),
+            sd_rateveh = sd(rate_vehicle),
+            max_pernwhite = max(per_nonwhite),
+            min_pernwhite = min(per_nonwhite),
+            ave_pernwhite = mean(per_nonwhite),
+            sd_pernwhite = sd(per_nonwhite))
+#export to csv.
+write.csv(table, file = here::here("memo/T4table.csv"), row.names = FALSE)
+
+```
+
+# task5 plot
+## variable 1: population density
+```{r task5-density, echo=FALSE}
+# hist plot
+ggplot(ct %>% filter(type == 'DTD'),
+       aes(x = pop_density))+
+  geom_histogram(fill = "red",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Population Density for DTDs",
+       x = "Population Density",
+       y = "Frequency")
+
+ggplot(ct %>% filter(type == 'DTO'),
+       aes(x = pop_density))+
+  geom_histogram(fill = "green",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Population Density for DTOs",
+       x = "Average Population Density",
+       y = "Frequency")
+
+#box plot
+ggplot(ct, aes(x = type, y = pop_density, fill = type)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = 'Population Density for DTDs and DTOs',
+       x = 'Type',
+       y = 'Population Density') +
+  scale_fill_manual(values = c("DTD" = "red", "DTO" = "green"))
+
+```
+1. Histogram for DTDs  
+The distribution is right-skewed, indicating that most DTDs have low population density below 5000 people per square miles, with fewer tracts having higher density.The presence of bars at the higher end suggests there are some areas with significantly higher population densities over 15,000 people per square miles, although these are less common.  
+2. Histogram for DTOs  
+The distribution is also right-skewed but more gradual across different travel times with fewer occurrences of very high population density. Most tracts have density below 8000 people per square miles.
+3. Boxplot for DTDs and DTOs
+Compared to DTOs, DTDs have a slightly higher median and a wider range of population density. Both have higher outliers but outliers of DTDs have much higher densities.
+
+
+## variable 2: percentage of non-White population
+```{r task5-nonwhite, echo=FALSE}
+
+# hist plot
+ggplot(ct %>% filter(type == 'DTD'),
+       aes(x = per_nonwhite))+
+  geom_histogram(fill = "red",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Percentage of non-White Population for DTDs",
+       x = "Percentage of non-White Population",
+       y = "Frequency")
+
+ggplot(ct %>% filter(type == 'DTO'),
+       aes(x = per_nonwhite))+
+  geom_histogram(fill = "green",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Percentage of non-White Population for DTOs",
+       x = "Percentage of non-White Population",
+       y = "Frequency")
+
+#box plot
+ggplot(ct, aes(x = type, y = per_nonwhite, fill = type)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = 'Percentage of non-White Population for DTDs and DTOs',
+       x = 'Type',
+       y = 'Percentage of non-White Population') +
+  scale_fill_manual(values = c("DTD" = "red", "DTO" = "green"))
+
+```
+1. Histogram for DTDs  
+The distribution is somewhat uniform across the range, with a slight concentration at the lower end, indicating a number of DTDs with a very small percentage of non-White population around 5%. Several peaks at several intervals, suggesting that certain percentages of non-White population are more common in DTDs. such as 32.5%, 62.5% and 81%.
+2. Histogram for DTOs  
+The distribution is right-skewed with a clear concentration of tracts with a low percentage of non-White population around 6-8%. The frequency steadily decreases as the percentage of non-White population increases, showing that higher percentages of non-White populations are less common in DTOs.
+3. Boxplot for DTDs and DTOs
+Compared to DTOs, DTDs have a higher median and a wider range of non-White population percentage. Only DTOs have outliers at the upper end, which means some DTOs have an unusually high percentage of non-White population, although they are not the norm.
+
+# task6:t test
+```{r task6}
+# average probabilities of enrolling in driver training
+t.test(ave_probability ~ type, data = ct)
+
+# vehicle ownership rates
+t.test(rate_vehicle ~ type, data = ct)
+
+# average probabilities of enrolling in driver training
+t.test(per_nonwhite ~ type, data = ct)
+
+# distribution of average probability
+ggplot(ct %>% filter(type == 'DTD'),
+       aes(x = ave_probability))+
+  geom_histogram(fill = "red",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Average Probabilities of Enrolling for DTDs",
+       x = "Average Probabilities of Enrolling",
+       y = "Frequency")
+
+ggplot(ct %>% filter(type == 'DTO'),
+       aes(x = ave_probability))+
+  geom_histogram(fill = "green",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Average Probabilities of Enrolling for DTOs",
+       x = "Average Probabilities of Enrolling",
+       y = "Frequency")
+
+# distribution of vehicle ownership rates
+ggplot(ct %>% filter(type == 'DTD'),
+       aes(x = rate_vehicle))+
+  geom_histogram(fill = "red",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Vehicle Ownership Rates for DTDs",
+       x = "Vehicle Ownership Rates",
+       y = "Frequency")
+
+ggplot(ct %>% filter(type == 'DTO'),
+       aes(x = rate_vehicle))+
+  geom_histogram(fill = "green",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Vehicle Ownership Rates for DTOs",
+       x = "Vehicle Ownership Rates",
+       y = "Frequency")
+```
+1. t-test on average probabilities of enrolling  
+DTDs have a statistically significant lower average probabilities of enrolling than DTOs (t = -9.25, p<0.05). DTDs and DTOs have the mean average probabilities of enrolling of 34% and 57% respectively, with a difference of 23%. Among all the census tracts, the difference was likely to be between 18% and 27%.  
+2. t-test on vehicle ownership rates
+DTDs have a statistically significant lower vehicle ownership rates than DTOs (t = -6.42, p<0.05). DTDs and DTOs have the mean vehicle ownership rates of 87% and 94% respectively, with a difference of 7%. Among all the census tracts, the difference was likely to be between 8% and 4%.  
+3. t-test on share of non-White population
+DTDs have a statistically significant higher percentage of non-White population than DTOs (t = 3.7, p<0.05). DTDs and DTOs have the mean percentage of non-White population of 35% and 24% respectively, with a difference of 11%. Among all the census tracts, the difference was likely to be between 5% and 2%.  
+4. assumptions violated  
+1) Those data violates the assumption of normal distribution. Some data distributions are right-skewed, including the percentage of non-White population for both DTDs and DTOs, and the average probabilities of enrolling for DTDs. Others are left-skewed, including the average probabilities of enrolling for DTOs and vehicle ownership rates for both.  
+2) Those data also violates the assumption of independent observations that requires all the observations are unrelated. Among census tracts, neighboring tracts always correlate with each other in some ways.  
+
+# task7: quatile graphics
+```{r task7}
+# median household income
+quartile_income <- quantile(ct$income, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE)
+
+ct$income_quartile <- cut(ct$income,
+                          breaks = quartile_income,
+                          labels = c('1st Quartile', '2nd Quartile', '3rd Quartile', '4th Quartile'),
+                          include.lowest = TRUE)
+
+
+
+# average probabilities of enrolling
+quartile_aveprop<- quantile(ct$ave_probability, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE)
+
+ct$aveprop_quartile <- cut(ct$ave_probability,
+                          breaks = quartile_aveprop,
+                          labels = c('1st Quartile', '2nd Quartile', '3rd Quartile', '4th Quartile'),
+                          include.lowest = TRUE)
+
+
+#make and export the table
+ct_barchart <- ct %>%
+  as_tibble()%>%
+  select(-geometry)%>%
+  count(income_quartile, aveprop_quartile)%>%
+  group_by(income_quartile)%>%
+  mutate(sum_byincome = sum(n),
+         per_aveprop_quartile = n/sum_byincome)
+
+write.csv(ct_barchart, file = here::here("memo/T7table.csv"), row.names = FALSE)
+
+```
+
+
+# task8: association
+```{r task8}
+# inspect the contingency table
+table(ct$aveprop_quartile, ct$income_quartile)
+prop.table(x = table(probability = ct$aveprop_quartile,
+                     income = ct$income_quartile),
+           margin = 2)
+# chi-sqaure test
+CrossTable(ct$aveprop_quartile, ct$income_quartile, chisq = TRUE,
+            expected = TRUE, sresid = TRUE, format="SPSS")
+# calculate the effect size
+cramersV(ct$aveprop_quartile, ct$income_quartile)
+```
+# task9: scatterplots
+```{r task9}
+# population density and probability
+plot(ct$pop_density,ct$ave_probability,
+     xlab = "Population Density", 
+     ylab = "Average Probability")
+
+# non-White population share and probability
+plot(ct$per_nonwhite, ct$ave_probability,
+     xlab = "non-White Population Share", 
+     ylab = "Average Probability")
+
+```
+
+# task10: correlation test
+```{r task10}
+# correlation test between probability and population density
+pcor1<- cor.test(ct$ave_probability, ct$pop_density) 
+pcor1
+(pcor1$estimate)^2 
+# correlation test between probability and non-White population share
+pcor2 <- cor.test(ct$ave_probability, ct$per_nonwhite) 
+pcor2
+(pcor2$estimate)^2 
+```
+
+

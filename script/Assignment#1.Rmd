@@ -52,23 +52,20 @@ ct_type <- ct%>%
 ```{r task2, echo=FALSE}
 # transform the projection system
 sch <- sch %>%
-  mutate(legend = "Schools")%>%
+  mutate(Schools= "Locations")%>%
   st_transform(st_crs(ct))
     
 
 ggplot()+
   geom_sf(data = ct, 
           aes(fill = type),
-          show.legend = "squares", 
           size = 2)+
   scale_fill_manual(values = c("red","green"), 
                     name = "Census Tracts")+
   geom_sf(data = sch,
-          shape = 21,
-          color = "grey",
-          fill = "white",
+          aes(color = Schools),
           size = 1)+
-  scale_color_manual(values = c("Schools" = "grey"), name = "Legend")+
+  scale_color_manual(values = "black")+
   labs(title = "DTDs and DTOs and Driving Schools")+
   theme_void()
 
@@ -202,12 +199,18 @@ Compared to DTOs, DTDs have a higher median and a wider range of non-White popul
 ```{r task6}
 # average probabilities of enrolling in driver training
 t.test(ave_probability ~ type, data = ct)
+cohensD(ave_probability ~ type, data = ct,
+        method = "unequal")
 
 # vehicle ownership rates
 t.test(rate_vehicle ~ type, data = ct)
+cohensD(rate_vehicle ~ type, data = ct,
+        method = "unequal")
 
 # average probabilities of enrolling in driver training
 t.test(per_nonwhite ~ type, data = ct)
+cohensD(per_nonwhite ~ type, data = ct,
+        method = "unequal")
 
 # distribution of average probability
 ggplot(ct %>% filter(type == 'DTD'),
@@ -245,6 +248,25 @@ ggplot(ct %>% filter(type == 'DTO'),
   theme_minimal()+
   labs(title = "Vehicle Ownership Rates for DTOs",
        x = "Vehicle Ownership Rates",
+       y = "Frequency")
+
+# distribution of non-White population share
+ggplot(ct %>% filter(type == 'DTD'),
+       aes(x = per_nonwhite))+
+  geom_histogram(fill = "red",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Non-White Population Share for DTDs",
+       x = "Non-White Population Share",
+       y = "Frequency")
+
+ggplot(ct %>% filter(type == 'DTO'),
+       aes(x = per_nonwhite))+
+  geom_histogram(fill = "green",
+                 color = "grey")+
+  theme_minimal()+
+  labs(title = "Non-White Population Share for DTOs",
+       x = "Non-White Population Share",
        y = "Frequency")
 ```
 1. t-test on average probabilities of enrolling  

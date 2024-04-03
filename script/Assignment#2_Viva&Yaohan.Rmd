@@ -1,0 +1,808 @@
+---
+title: "Assignment #2: Regression"
+author: "Viva and Yaohan"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    keep_md: yes
+    toc: yes
+    theme: flatly
+    toc_float: yes
+    code_folding: hide
+    number_sections: no
+    fontsize: 12pt
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+options(scipen = 999)
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	cache = TRUE
+)
+
+if(!require(pacman)){install.packages("pacman"); library(pacman)}
+p_load(tidyverse, sf, units, nngeo, tmap, tinytex, kableExtra, ggplot2, janitor, classInt,
+       patchwork, here, tidycensus, lwgeom, lsr, haven, descr, RColorBrewer, stargazer, car)
+
+load(here::here("data/raw/cpln505_assignment2_data.Rda"))
+```
+
+# Task1
+
+**Created Variables:**
+
+Social Characteristics: 
+1. Population Density (population/land_acre) 
+2. Median Age (median_age & quartile) 
+3. Education Level (edu_ba_above/pop_above_25 dummy) 
+4. Non-White Population Share (1 - white/population)
+
+Economic Characteristics: 
+1. Job Density (tot_jobs/land_acre) 
+2. Poverty Rate (below_pov/population) 
+3. Median Household Income (income & quartile) 
+4. No Vehicle Household Share (hh_no_veh/total_hh)
+
+Spatial Characteristics: 
+1. Land Use (com_share + indu_share) 
+2. District (district dummy)
+
+Multimodal Characteristics: 
+1. Indego Station (indego_station dummy) 
+2. Walk Score (walk_score, above/below mean, dummy) 
+3. Transit Score (transit_score_d, above/below mean, dummy) 
+4. Worker Drive Alone (drove_alone/total_worker)
+5. Worker Take Transit (transit/total_worker) 
+6. Average Pedestrian Trips per Person (ped_trips/population) 
+7. Traffic Volume (total_aad quartile) 
+8. Accessibility to Subway Station (station_buffer dummy)
+
+```{r task1}
+taxi_dat <- dat %>%
+  filter(population > 0) %>% # Note reason for remove population = 0
+  # create social variables
+  mutate(pop_density = round(ifelse(land_acre > 0, population/land_acre, 0), digits = 2), # population/acre
+         median_age_cat = cut(
+           median_age, breaks = quantile(median_age, probs = c(0, 0.25, 0.5, 0.75, 1)),
+           labels = c("age_1st", "age_2nd", "age_3rd", "age_4th"),
+           include.lowest = TRUE), # median_age quartile 
+         edu_ba_per = round(ifelse(pop_above_25> 0, edu_ba_above/pop_above_25, 0) * 100, digits = 2), # %
+         edu_level_dum = ifelse(edu_ba_per >= mean(edu_ba_per), "above_ave", "below_ave"), # dummy
+         non_white_per = round((1 - white/population) * 100, digits = 2)) %>% # %
+  # create economic variables
+  mutate(job_density = round(ifelse(land_acre > 0, tot_jobs/land_acre, 0), digits = 2), # employment/acre
+         poverty_rate = round((below_pov/population) * 100, digits = 2), # %
+         income_cat = cut(
+           income, breaks = quantile(income, probs = c(0, 0.25, 0.5, 0.75, 1)),
+           labels = c("income_1st", "income_2nd", "income_3rd", "income_4th"),
+           include.lowest = TRUE), # median_hh_income quartile
+         no_veh_hh_per = round(ifelse(total_hh > 0, hh_no_veh/total_hh, 0) * 100, digits = 2)) %>% # %
+  # create spatial variables
+  mutate(com_indu_per = round(com_share + indu_share, digits = 2), # %
+         district_dum = ifelse(district == "Central", "central", "non_central")) %>% # dummy
+  # create multimodal variables
+  mutate(inde_station_dum = ifelse(indego_station > 0, "indego", "non_indego"),
+         walk_score_dum = ifelse(walk_score >= mean(walk_score), "above_ave", "below_ave"), # dummy
+         transit_score_dum = ifelse(transit_score_d >= mean(transit_score_d), "above_ave", "below_ave"), # dummy
+         drive_per = round(ifelse(total_worker > 0, drove_alone/total_worker, 0) * 100, digits = 2), # %
+         transit_per = round(ifelse(total_worker > 0, transit/total_worker, 0) * 100, digits = 2), # %
+         ped_trips_pp = round(ifelse(population > 0, ped_trips/population, 0), digits = 2), # trips/person
+         subway_dum = ifelse(station_buffer == 1, "subway", "non_subway")) %>% # dummy 
+  select(GEOID, tract, taxi_trip_2015, taxi_trip_2017,
+         pop_density, median_age, median_age_cat, edu_ba_per, edu_level_dum, non_white_per,
+         job_density, poverty_rate, income, income_cat, no_veh_hh_per,
+         com_indu_per, district_dum, inde_station_dum, walk_score, walk_score_dum,
+         transit_score_d, transit_score_dum, drive_per, transit_per, ped_trips_pp, subway_dum)
+```
+
+# Task 2
+
+```{r task2, message=FALSE}
+#create district boundary
+union_district <- dat %>%
+  group_by(district) %>% # Group by the district column
+  summarise()%>%
+  mutate(centroid = st_centroid(geometry)) %>% 
+  mutate(lon = st_coordinates(centroid)[,1], lat = st_coordinates(centroid)[,2])
+
+
+# The map of taxi trips by Census tract in Philadelphia in 2017
+breaks_quantiles <- classIntervals(taxi_dat$taxi_trip_2017, n = 5, style = "quantile")
+colors <- brewer.pal(n = 5, name = "Blues")
+labels <- paste0(formatC(breaks_quantiles$brks[-length(breaks_quantiles$brks)], format = "f", digits = 0, big.mark = ","), 
+                 " - ", 
+                 formatC(breaks_quantiles$brks[-1], format = "f", digits = 0, big.mark = ","))
+
+ggplot(taxi_dat) +
+  geom_sf(aes(fill = cut(taxi_trip_2017, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
+  scale_fill_manual(values = colors,
+                    labels = labels,
+                    name = "Taxi Trips (Quantile)") +
+  labs(title = "Taxi Trips by Census Tract in Philadelphia, 2017") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        legend.position = c(1, 0.2))+
+  geom_sf(data = union_district, fill = NA, color = "grey", inherit.aes = FALSE) +
+  geom_text(data = union_district, aes(x = lon, y = lat, label = district), size = 1.75,
+            color = "black",check_overlap = TRUE, inherit.aes = FALSE)
+
+
+# The map of changes in taxi trips between 2015 and 2017
+taxi_change <- taxi_dat %>%
+  mutate(change_trips = taxi_trip_2017 - taxi_trip_2015)
+
+breaks_quantiles_change <- classIntervals(taxi_change$change_trips, n = 5, style = "quantile")
+colors_heat <- rev(brewer.pal(n = 5, name = "YlOrRd"))
+labels_heat <- paste0(formatC(breaks_quantiles_change$brks[-length(breaks_quantiles_change$brks)], format = "f", digits = 0, big.mark = ","), 
+                 " - ", 
+                 formatC(breaks_quantiles_change$brks[-1], format = "f", digits = 0, big.mark = ","))
+
+ggplot(taxi_change) +
+  geom_sf(aes(fill = cut(change_trips, breaks = breaks_quantiles_change$brks, include.lowest = TRUE)), color = "transparent") +
+  scale_fill_manual(values = colors_heat,
+                    labels = labels_heat,
+                    name = "Change of Taxi Trips (Quantile)") +
+  labs(title = "Change in Taxi Trips in Philadelphia, 2015 - 2017") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        legend.position = c(1, 0.2))+
+  geom_sf(data = union_district, fill = NA, color = "grey", inherit.aes = FALSE) +
+  geom_text(data = union_district, aes(x = lon, y = lat, label = district), size = 1.75,
+            color = "black",check_overlap = TRUE, inherit.aes = FALSE)
+
+```
+
+# Task 3
+
+```{r task 3}
+# histogram of taxi trips in 2017
+ggplot(taxi_dat) +
+  geom_histogram(aes(x = taxi_trip_2017), bins = 15, fill = "white", color = "black") +
+  labs(title = "Histogram of Philadelphia Taxi Trips in 2017",
+       x = "Taxi Trips",
+       y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# histogram of taxi trips (logged) in 2017
+ggplot(taxi_dat) +
+  geom_histogram(aes(x = log(taxi_trip_2017)), bins = 15, fill = "white", color = "black") +
+  labs(title = "Histogram of Philadelphia Taxi Trips (logged) in 2017",
+       x = "Taxi Trips (logged)",
+       y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+# Task 4
+
+```{r task4}
+par(mfrow = c(2, 2))
+
+## continuous independent variables
+### pop_density
+plot(taxi_dat$pop_density, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$pop_density + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$pop_density, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$pop_density + 1), log(taxi_dat$taxi_trip_2017))
+
+### median age
+plot(taxi_dat$median_age, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$median_age + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$median_age, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$median_age + 1), log(taxi_dat$taxi_trip_2017))
+
+### edu_ba_per
+plot(taxi_dat$edu_ba_per, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$edu_ba_per + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$edu_ba_per, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$edu_ba_per + 1), log(taxi_dat$taxi_trip_2017))
+
+### non_white_per
+plot(taxi_dat$non_white_per, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$non_white_per + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$non_white_per, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$non_white_per + 1), log(taxi_dat$taxi_trip_2017))
+
+### job_density
+plot(taxi_dat$job_density, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$job_density + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$job_density, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$job_density + 1), log(taxi_dat$taxi_trip_2017))
+
+### poverty_rate
+plot(taxi_dat$poverty_rate, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$poverty_rate + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$poverty_rate, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$poverty_rate + 1), log(taxi_dat$taxi_trip_2017))
+
+### income
+plot(taxi_dat$income, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$income + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$income, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$income + 1), log(taxi_dat$taxi_trip_2017))
+
+### no_veh_hh_per
+plot(taxi_dat$no_veh_hh_per, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$no_veh_hh_per + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$no_veh_hh_per, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$no_veh_hh_per + 1), log(taxi_dat$taxi_trip_2017))
+
+### com_indu_per
+plot(taxi_dat$com_indu_per, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$com_indu_per + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$com_indu_per, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$com_indu_per + 1), log(taxi_dat$taxi_trip_2017))
+
+### walk_score
+plot(taxi_dat$walk_score, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$walk_score + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$walk_score, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$walk_score + 1), log(taxi_dat$taxi_trip_2017))
+
+### transit_score_d
+plot(taxi_dat$transit_score_d, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$transit_score_d + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$transit_score_d, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$transit_score_d + 1), log(taxi_dat$taxi_trip_2017))
+
+### drive_per
+plot(taxi_dat$drive_per, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$drive_per + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$drive_per, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$drive_per + 1), log(taxi_dat$taxi_trip_2017))
+
+### transit_per
+plot(taxi_dat$transit_per, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$transit_per + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$transit_per, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$transit_per + 1), log(taxi_dat$taxi_trip_2017))
+
+### ped_trips_pp
+plot(taxi_dat$ped_trips_pp, taxi_dat$taxi_trip_2017)
+plot(log(taxi_dat$ped_trips_pp + 1), taxi_dat$taxi_trip_2017)
+plot(taxi_dat$ped_trips_pp, log(taxi_dat$taxi_trip_2017))
+plot(log(taxi_dat$ped_trips_pp + 1), log(taxi_dat$taxi_trip_2017))
+```
+
+```{r}
+## four chosen plots
+par(mfrow = c(1, 1))
+
+### job_density
+ggplot(taxi_dat) +
+  geom_point(aes(x = log(job_density + 1), y = log(taxi_trip_2017)), color = "black", pch = 16, size = 2) +
+  labs(title = "2017 Taxi Trips vs. Job Density",
+       x = "Employment per Acre (logged)",
+       y = "Taxi Trips (logged)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+### drive_per
+ggplot(taxi_dat) +
+  geom_point(aes(x = drive_per, y = log(taxi_trip_2017)), color = "black", pch = 16, size = 2) +
+  labs(title = "2017 Taxi Trips vs. Drive Alone Workers",
+       x = "Drive Alone Workers",
+       y = "Taxi Trips (logged)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+### transit_score_d
+ggplot(taxi_dat) +
+  geom_point(aes(x = transit_score_d, y = log(taxi_trip_2017)), color = "black", pch = 16, size = 2) +
+  labs(title = "2017 Taxi Trips vs. Transit Score",
+       x = "Transit Score",
+       y = "Taxi Trips (logged)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+### ped_trips_pp
+ggplot(taxi_dat) +
+  geom_point(aes(x = log(ped_trips_pp + 1), y = log(taxi_trip_2017)), color = "black", pch = 16, size = 2) +
+  labs(title = "2017 Taxi Trips vs. Average Pedestrian Trips per Person",
+       x = "Average Pedestrian Trips per Person (logged)",
+       y = "Taxi Trips (logged)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+# Task 5
+
+```{r task5}
+## continuous variables
+taxi_summary <- taxi_dat %>%
+  st_drop_geometry() %>%
+  summarise(across(c(taxi_trip_2015, taxi_trip_2017,
+                     pop_density, median_age, edu_ba_per, non_white_per, 
+                     job_density, poverty_rate, income,
+                     no_veh_hh_per, com_indu_per, walk_score, transit_score_d,
+                     drive_per, transit_per, ped_trips_pp),
+                   list(maximum = ~ max(., na.rm = TRUE),
+                        minimum = ~ min(., na.rm = TRUE),
+                        mean = ~ mean(., na.rm = TRUE),
+                        standard_deviation = ~ sd(., na.rm = TRUE)),
+                   .names = "{.col}:{.fn}")) %>%
+  pivot_longer(cols = everything(), names_to = c("variables", "statistic"),
+               names_sep = ":", values_to = "value") %>%
+  mutate(value = round(value, digits = 2)) %>%
+  pivot_wider(names_from = statistic, values_from = value)
+
+## categorical variables
+### median_age_cat
+median_age_cat_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(median_age_cat) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+  
+### edu_level_dum
+edu_level_dum_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(edu_level_dum) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+
+### income_cat
+income_cat_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(income_cat) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+
+### district_dum
+district_dum_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(district_dum) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+
+### inde_station_dum
+inde_station_dum_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(inde_station_dum) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+
+### walk_score_dum
+walk_score_dum_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(walk_score_dum) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+
+### transit_score_dum
+transit_score_dum_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(transit_score_dum) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2)) 
+
+### subway_dum
+subway_dum_sum <- taxi_dat %>%
+  st_drop_geometry() %>%
+  group_by(subway_dum) %>%
+  summarise(count = n()) %>%
+  mutate(percent = round(count/sum(count) * 100, digits = 2))
+```
+
+# Task 6
+
+```{r task6-1, warning=FALSE}
+## simple regression on continuous variables
+con.var <- c("pop_density","median_age","edu_ba_per","non_white_per",
+             "job_density","poverty_rate","income","no_veh_hh_per",
+             "com_indu_per","walk_score","transit_score_d",
+             "drive_per","transit_per","ped_trips_pp")
+
+con_models <- list()
+
+for (var in con.var) {
+    formula1 <- as.formula(paste("taxi_trip_2017 ~", var))
+    formula2 <- as.formula(paste("taxi_trip_2017 ~ log(", var, " + 1)"))
+    formula3 <- as.formula(paste("log(taxi_trip_2017) ~", var))
+    formula4 <- as.formula(paste("log(taxi_trip_2017) ~ log(", var, " + 1)"))
+    
+    model1 <- lm(formula1, data = taxi_dat)
+    model2 <- lm(formula2, data = taxi_dat)
+    model3 <- lm(formula3, data = taxi_dat)
+    model4 <- lm(formula4, data = taxi_dat)
+    
+    # store the models in the list
+    con_models[[paste(var, "1", sep = ".")]] <- model1
+    con_models[[paste(var, "2", sep = ".")]] <- model2
+    con_models[[paste(var, "3", sep = ".")]] <- model3
+    con_models[[paste(var, "4", sep = ".")]] <- model4
+    
+    # use stargazer to display the model summaries side-by-side
+    cat(paste("Model summaries for variable:", var, "\n"))
+    stargazer(model1, model2, model3, model4, type = "text")
+    cat("\n\n")  # add some space between different sets of models for clarity
+}
+
+## simple regression on categorical variables
+cat.var <- c("median_age_cat","edu_level_dum",
+             "income_cat","district_dum",
+             "inde_station_dum","walk_score_dum","transit_score_dum",
+             "subway_dum")
+
+cat_models <- list()
+
+for (var2 in cat.var) {
+    formula5 <- as.formula(paste("taxi_trip_2017 ~", var2))
+    formula6 <- as.formula(paste("log(taxi_trip_2017) ~", var2))
+    
+    model5 <- lm(formula5, data = taxi_dat)
+    model6 <- lm(formula6, data = taxi_dat)
+    
+    # store the models in the list
+    cat_models[[paste(var2, "5", sep = ".")]] <- model5
+    cat_models[[paste(var2, "6", sep = ".")]] <- model6
+    
+    # use stargazer to display the model summaries side-by-side
+    cat(paste("Model summaries for variable:", var2, "\n"))
+    stargazer(model5, model6, type = "text")
+    cat("\n\n")  # add some space between different sets of models for clarity
+}
+```
+
+```{r task6-2}
+## four chosen models
+### pop_density
+pop_density_1 <- con_models[["pop_density.1"]]
+pop_density_2 <- con_models[["pop_density.2"]]
+pop_density_3 <- con_models[["pop_density.3"]]
+pop_density_4 <- con_models[["pop_density.4"]]
+#### chose model
+stargazer(pop_density_3, type = "text")
+#### comparison models
+stargazer(pop_density_1, pop_density_2, pop_density_3, pop_density_4, type = "text")
+
+### drive_per
+drive_per_1 <- con_models[["drive_per.1"]]
+drive_per_2 <- con_models[["drive_per.2"]]
+drive_per_3 <- con_models[["drive_per.3"]]
+drive_per_4 <- con_models[["drive_per.4"]]
+#### chose model
+stargazer(drive_per_3, type = "text")
+#### comparison models
+stargazer(drive_per_1, drive_per_2, drive_per_3, drive_per_4, type = "text")
+
+### income_cat
+income_cat_1 <- cat_models[["income_cat.5"]]
+income_cat_2 <- cat_models[["income_cat.6"]]
+#### chose model
+stargazer(income_cat_1, type = "text")
+#### comparison models
+stargazer(income_cat_1, income_cat_2, type = "text")
+
+### inde_station_dum
+inde_station_dum_1 <- cat_models[["inde_station_dum.5"]]
+inde_station_dum_2 <- cat_models[["inde_station_dum.6"]]
+#### chose model
+stargazer(inde_station_dum_2, type = "text")
+#### comparison models
+stargazer(inde_station_dum_1, inde_station_dum_2, type = "text")
+```
+
+# Task 7
+
+```{r task7-1}
+# multiple regression for 2017 taxi trips
+## step one: simple regression and plot
+lm0<- lm(taxi_trip_2017 ~ pop_density + edu_ba_per + non_white_per +job_density
+         + log(poverty_rate+1) + income + no_veh_hh_per + com_indu_per + district_dum
+         + inde_station_dum +walk_score+ transit_score_d + drive_per + log(ped_trips_pp+1)
+         + subway_dum, data = taxi_dat)
+summary(lm0)
+vif(lm0)
+
+## step two: avoid multicolinearity (vif: all below 4)
+### identify correlated variables (continuous)
+taxi_dat_mod.2017 <- taxi_dat%>%
+  st_drop_geometry()%>%
+  mutate(log_poverty_rate = log(poverty_rate + 1),
+         log_ped_trips_pp = log(ped_trips_pp + 1))%>%
+  select(pop_density, edu_ba_per, non_white_per, job_density, log_poverty_rate,
+         income, no_veh_hh_per,com_indu_per, walk_score, transit_score_d, drive_per,
+         log_ped_trips_pp)
+
+cor(taxi_dat_mod.2017) ## -> highly correlated:pop_density&transit_score_d
+
+### choose between pop_density&transit_score_d
+lm0.1<- lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + log(poverty_rate+1)
+           + income + no_veh_hh_per + com_indu_per + district_dum + inde_station_dum
+           + walk_score + transit_score_d + drive_per + log(ped_trips_pp+1) + subway_dum,
+           data = taxi_dat)
+
+lm0.2<- lm(taxi_trip_2017 ~ pop_density + edu_ba_per + non_white_per + job_density
+           + log(poverty_rate+1) + income + no_veh_hh_per + com_indu_per + district_dum
+           + inde_station_dum + walk_score+ drive_per + log(ped_trips_pp+1) + subway_dum,
+           data = taxi_dat)
+
+stargazer(lm0.1, lm0.2, type = "text") #-->delete pop_density
+
+### delete pop_density
+lm1 <-  lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + log(poverty_rate+1)
+           + income + no_veh_hh_per + com_indu_per + district_dum + inde_station_dum
+           + walk_score+ transit_score_d + drive_per + log(ped_trips_pp+1) + subway_dum,
+           data = taxi_dat)
+summary(lm1)
+
+vif(lm1) # biggest: income = 5.7, cor(income & log_poverty_rate)
+
+### choose between income&log_poverty_rate
+lm1.1 <- lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + log(poverty_rate+1)
+            + no_veh_hh_per + com_indu_per + district_dum + inde_station_dum + walk_score
+            + transit_score_d + drive_per + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+
+lm1.2 <- lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + income + no_veh_hh_per
+            + com_indu_per + district_dum + inde_station_dum +walk_score+ transit_score_d
+            + drive_per + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+
+stargazer(lm1.1, lm1.2, type = "text") #-->delete income
+
+### delete income
+lm2 <-  lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + log(poverty_rate+1)
+           + no_veh_hh_per + com_indu_per + district_dum + inde_station_dum + walk_score
+           + transit_score_d + drive_per + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm2)
+vif(lm2) # biggest: no_veh_hh_per = 4.5, cor(no_veh_hh_per & drive_per)
+
+### choose between no_veh_hh_per&drive_per
+lm2.1 <- lm(taxi_trip_2017 ~ edu_ba_per + non_white_per + job_density + log(poverty_rate+1)
+            + com_indu_per + district_dum + inde_station_dum + walk_score + transit_score_d
+            + drive_per + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+
+lm2.2 <- lm(taxi_trip_2017 ~ edu_ba_per + non_white_per + job_density + log(poverty_rate+1)
+            + no_veh_hh_per + com_indu_per + district_dum + inde_station_dum + walk_score
+            + transit_score_d + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+
+stargazer(lm2.1, lm2.2, type = "text") #-->delete no_veh_hh_per
+
+### delete drive_per
+lm3 <-  lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + log(poverty_rate+1)
+           + no_veh_hh_per + com_indu_per + district_dum + inde_station_dum + walk_score
+           + transit_score_d + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm3) #r=0.6127
+vif(lm3) # no variable over 4
+
+## step three: keep significant variables only (all significant at p = 0.01)
+### delete district_dum
+lm4 <-  lm(taxi_trip_2017 ~ edu_ba_per + non_white_per +job_density + log(poverty_rate+1)
+           + no_veh_hh_per + com_indu_per  + inde_station_dum +walk_score+ transit_score_d
+           + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm4) # adjusted r-squared=0.6135
+
+### delete edu_ba_per
+lm5 <-  lm(taxi_trip_2017 ~ non_white_per +job_density + log(poverty_rate+1) +
+             no_veh_hh_per + com_indu_per  + inde_station_dum + walk_score
+           + transit_score_d + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm5) # adjusted r-squared=0.6143
+
+### delete com_indu_per
+lm6 <-  lm(taxi_trip_2017 ~ non_white_per +job_density + log(poverty_rate+1) + no_veh_hh_per
+           + inde_station_dum +walk_score+ transit_score_d + log(ped_trips_pp+1) + subway_dum,
+           data = taxi_dat)
+summary(lm6) # adjusted r-squared=0.6148
+
+### delete no_veh_hh_per 
+lm7 <-  lm(taxi_trip_2017 ~ non_white_per +job_density + log(poverty_rate+1)
+           + inde_station_dum + walk_score+ transit_score_d + log(ped_trips_pp+1)
+           + subway_dum, data = taxi_dat)
+summary(lm7) # adjusted r-squared=0.6116 (-0.0032)
+
+### delete non_white_per
+lm8 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1) + inde_station_dum
+           + walk_score + transit_score_d + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm8) # adjusted r-squared=0.6039(-0.0077)
+
+### delete transit_score_d
+lm9 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1) + inde_station_dum
+           + walk_score+ log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm9) # adjusted r-squared=0.6049(-0010)
+
+### delete walk_score
+lm10 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1) + inde_station_dum
+            + log(ped_trips_pp+1) + subway_dum, data = taxi_dat)
+summary(lm10) # adjusted r-squared=0.6027(-0.0022)
+
+### delete subway_dum
+lm11 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1) + inde_station_dum
+            + log(ped_trips_pp+1) , data = taxi_dat)
+summary(lm11) # adjusted r-squared=0.599(-0.0037)
+
+## step four: add interaction variables
+### possible variables:
+#### log(poverty_rate+1)*inde_station_dum
+lm12 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1)*inde_station_dum
+            + log(ped_trips_pp+1) , data = taxi_dat)
+summary(lm12) # adjusted r-squared=0.645
+
+#### log(poverty_rate+1)*log(ped_trips_pp+1)
+lm13 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1)* log(ped_trips_pp+1)
+            + inde_station_dum , data = taxi_dat)
+summary(lm13) # adjusted r-squared=0.6073
+
+#### log(ped_trips_pp+1)*inde_station_dum
+lm14 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1) + log(ped_trips_pp+1)*inde_station_dum,
+            data = taxi_dat)
+summary(lm14) # adjusted r-squared=0.6843
+
+### model comparison
+anova(lm11,lm14)
+
+## step five:assumption
+vif(lm11)
+plot(lm14)
+
+#interpretation
+-8190.54*log(1+0.01)
+84096*log(1+0.01)
+-71976*log(1+0.01)
+```
+
+```{r task7-2}
+# multiple regression for logged 2017 taxi trips
+
+## add dummy variable for median age
+taxi_dat <- taxi_dat %>%
+  mutate(median_age_dum = ifelse(median_age_cat == "age_4th","old","young"))
+
+summary(lm(log(taxi_trip_2017) ~ median_age_dum, data = taxi_dat))
+
+## step one: simple regression and plot
+taxi_log_2017 <- taxi_dat %>%
+  select(taxi_trip_2017, pop_density, job_density, poverty_rate, no_veh_hh_per, walk_score,
+         edu_ba_per, transit_score_d, drive_per, transit_per, ped_trips_pp, median_age_dum,
+         district_dum, inde_station_dum, subway_dum)
+
+lma <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + no_veh_hh_per + walk_score + edu_ba_per + transit_score_d + drive_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+summary(lma)
+vif(lma) #biggest: transit_score_d = 8.7
+
+## step two: avoid multicolinearity (vif: all below 4)
+### identify correlated variables (continuous)
+cor(taxi_log_2017 %>%
+      st_drop_geometry() %>%
+      mutate(job_density = log(job_density + 1), transit_per = log(transit_per + 1),
+             ped_trips_pp = log(ped_trips_pp + 1)) %>%
+      select(pop_density, job_density, poverty_rate, no_veh_hh_per, walk_score,
+             edu_ba_per, transit_score_d,drive_per, transit_per, ped_trips_pp
+             )) ## -> highly correlated:pop_density&transit_score_d
+
+### choose between pop_density&transit_score_d
+lma.1 <- lm(log(taxi_trip_2017) ~ log(job_density + 1) + poverty_rate
+          + no_veh_hh_per + walk_score + edu_ba_per + transit_score_d + drive_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+summary(lma.1)
+
+lma.2 <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + no_veh_hh_per + walk_score + edu_ba_per + drive_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+summary(lma.2) #-->delete transit_score_d
+
+### delete transit_score_d
+lmb <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + no_veh_hh_per + walk_score + edu_ba_per + drive_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+vif(lmb) #biggest: no_veh_hh_per = 4.8
+cor(taxi_log_2017 %>%
+      st_drop_geometry() %>%
+      mutate(job_density = log(job_density + 1), transit_per = log(transit_per + 1),
+             ped_trips_pp = log(ped_trips_pp + 1)) %>%
+      select(pop_density, job_density, poverty_rate, no_veh_hh_per, walk_score,
+             edu_ba_per, drive_per, transit_per, ped_trips_pp))
+
+### choose between drive_per&no_veh_hh_per
+lmb.1 <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + no_veh_hh_per + walk_score + edu_ba_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+summary(lmb.1)
+
+lmb.2 <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + walk_score + edu_ba_per + drive_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+summary(lmb.2) #-->delete no_veh_hh_per
+
+### delete no_veh_hh_per
+lmc <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + walk_score + edu_ba_per + drive_per
+          + log(transit_per + 1) + log(ped_trips_pp + 1) + median_age_dum
+          + district_dum + inde_station_dum + subway_dum, data = taxi_log_2017)
+vif(lmc) # no variable over 4
+summary(lmc) # adjusted r-squared=0.7616
+
+vif(lma)
+vif(lmc)
+
+## step three: keep significant variables only (all significant at p = 0.001)
+### delete walk_score
+lmd <- lm(log(taxi_trip_2017) ~ pop_density + log(job_density + 1) + poverty_rate
+          + edu_ba_per + drive_per + log(transit_per + 1) + log(ped_trips_pp + 1)
+          + median_age_dum + district_dum + inde_station_dum + subway_dum,
+          data = taxi_log_2017)
+summary(lmd) # adjusted r-squared=0.7623
+
+### delete log(job_density + 1)
+lme <- lm(log(taxi_trip_2017) ~ pop_density + poverty_rate
+          + edu_ba_per + drive_per + log(transit_per + 1) + log(ped_trips_pp + 1)
+          + median_age_dum + district_dum + inde_station_dum + subway_dum,
+          data = taxi_log_2017)
+summary(lme) # adjusted r-squared=0.7609
+
+### delete edu_ba_per
+lmf <- lm(log(taxi_trip_2017) ~ pop_density + poverty_rate
+          + drive_per + log(transit_per + 1) + log(ped_trips_pp + 1)
+          + median_age_dum + district_dum + inde_station_dum + subway_dum,
+          data = taxi_log_2017)
+summary(lmf) # adjusted r-squared=0.7599
+
+### delete median_age_dum
+lmg <- lm(log(taxi_trip_2017) ~ pop_density + poverty_rate
+          + drive_per + log(transit_per + 1) + log(ped_trips_pp + 1)
+          + district_dum + inde_station_dum + subway_dum,
+          data = taxi_log_2017)
+summary(lmg) # adjusted r-squared=0.7551
+
+### delete poverty_rate
+lmh <- lm(log(taxi_trip_2017) ~ pop_density + drive_per + log(transit_per + 1)
+          + log(ped_trips_pp + 1) + district_dum + inde_station_dum + subway_dum,
+          data = taxi_log_2017)
+summary(lmh)  # adjusted r-squared=0.7509
+
+## step four: add interaction variables
+lmi <- lm(log(taxi_trip_2017) ~ pop_density + drive_per + log(transit_per + 1)
+          + log(ped_trips_pp + 1) + district_dum + inde_station_dum + subway_dum
+          + pop_density*subway_dum,
+          data = taxi_log_2017)
+summary(lmi)  # adjusted r-squared=0.7557
+
+### model comparison
+anova(lmh, lmi)
+stargazer(lmh, lmi, type = "text")
+
+## step five:assumption
+vif(lmi)
+plot(lmi)
+
+## interpretation
+(exp(0.026268)-1)*100
+(exp(-0.026716)-1)*100
+(exp(-1.057646)-1)*100
+(exp(-0.939369)-1)*100
+(exp(1.241078)-1)*100
+(exp(-0.020553)-1)*100
+```
+
+# Task 8
+
+```{r task8}
+lm_2017 <-  lm(taxi_trip_2017 ~ job_density + log(poverty_rate+1)
+               + log(ped_trips_pp+1)*inde_station_dum, data = taxi_dat)
+lm_2015 <-  lm(taxi_trip_2015 ~ job_density + log(poverty_rate+1)
+               + log(ped_trips_pp+1)*inde_station_dum, data = taxi_dat)
+
+stargazer(lm_2017, lm_2015, type = "text")
+
+#interpretation
+-8190*log(1+0.01)
+84096*log(1+0.01)
+-71976*log(1+0.01)
+
+-12454*log(1+0.01)
+129930*log(1+0.01)
+-110493*log(1+0.01)
+```

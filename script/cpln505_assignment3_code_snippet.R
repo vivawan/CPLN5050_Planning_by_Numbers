@@ -26,10 +26,10 @@ rm(list = ls())
 library(tidyverse)
 library(readxl)
 
-hh <- read_excel(here::here("data/raw/DVRPC HTS Database Files/1_Household_Public.xlsx"))
-per <- read_excel(here::here("data/raw/DVRPC HTS Database Files/2_Person_Public.xlsx"))
-veh <- read_excel(here::here("data/raw/DVRPC HTS Database Files/3_Vehicle_Public.xlsx")) 
-trip<- read_excel(here::here("data/raw/DVRPC HTS Database Files/4_Trip_Public.xlsx"))
+hh <- read_excel(here::here("data/raw/1_Household_Public.xlsx"))
+per <- read_excel(here::here("data/raw/2_Person_Public.xlsx"))
+veh <- read_excel(here::here("data/raw/3_Vehicle_Public.xlsx")) 
+trip<- read_excel(here::here("data/raw/4_Trip_Public.xlsx"))
 
 #filtering, recategorizing, renaming, and selecting variables#### 
 #take trip dataset
@@ -37,6 +37,8 @@ trip<- read_excel(here::here("data/raw/DVRPC HTS Database Files/4_Trip_Public.xl
 #step 2. recode modes to bike, car, and transit (please name the modes as such)
 #step 3. some people took multiple work trips. for each person, keep only the first work trip
 #step 4. select household id, person id, parking costs, travel time (model simulated), and travel distance (model simulated)
+
+
 
 #take person dataset
 #step 1. identify personal variables that might be associated with mode choice (be careful about the 988 value for race)

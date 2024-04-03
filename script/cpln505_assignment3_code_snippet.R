@@ -25,6 +25,7 @@ dat <- dat.voting %>% filter(VCF0004 == 2012 | VCF0004 == 2016) %>%
 rm(list = ls())
 library(tidyverse)
 library(readxl)
+library(lubridate)
 
 hh <- read_excel(here::here("data/raw/1_Household_Public.xlsx"))
 per <- read_excel(here::here("data/raw/2_Person_Public.xlsx"))
@@ -37,14 +38,76 @@ trip<- read_excel(here::here("data/raw/4_Trip_Public.xlsx"))
 #step 2. recode modes to bike, car, and transit (please name the modes as such)
 #step 3. some people took multiple work trips. for each person, keep only the first work trip
 #step 4. select household id, person id, parking costs, travel time (model simulated), and travel distance (model simulated)
-
-
+trip_work <- trip%>%
+  filter(D_LOC_TYPE == 2 & MODE_AGG %in% c(2,3,5))%>% #destination location type & mode aggregated
+  mutate(mode_cat = as.factor(recode(MODE_AGG,
+    `3` = "car",
+    `2` = "bike",
+    `5` = "transit"
+  )))%>%
+  group_by(PERSON_ID) %>%
+  slice(1) %>% # Keep only the first row for each group
+  ungroup()%>% # Optionally, ungroup the data frame
+  mutate(park_perhour = PARK_COST/Model_TravTime*60)%>%
+  select(HH_ID, 
+         PERSON_ID,
+         mode_cat,
+         park_perhour,
+         Model_TravTime,
+         Model_TravDist
+         )
+         
+table(trip_work$Model_TravTime)
 
 #take person dataset
 #step 1. identify personal variables that might be associated with mode choice (be careful about the 988 value for race)
 #step 2. for each variable, remove meaningless values
 #step 3. recode values to more sensible categories
 #step 4. select only the relevant variables
+table(per$WK_MODE)
+per_work <- per %>%
+  mutate(mode_cat = factor(case_when( #recode mode
+    WK_MODE %in% c(1,2) ~ "car",
+    WK_MODE == 5 ~ "bike",
+    WK_MODE %in% c(3,4) ~ "transit",
+    WK_MODE %in% c(0,6,7,8,9) ~ "others"
+  )),
+  gender_cat = as.factor(recode(GEND,#recode gender
+                         `1` = "male",
+                         `2` = "female")),
+  age_cat = as.factor(recode(AGECAT,#recode age
+                      `1` = "0-5",
+                      `2` = "6-12",
+                      `3` = "13-15",
+                      `4` = '16-17',
+                      `5` = '18-24',
+                      `6` = '25-34',
+                      `7` = '35-44',
+                      `8` = '45-54',
+                      `9` = '55-64',
+                      `10` = '65-74',
+                      `11` = '75-85',
+                      `12` = '86+')),
+  edu_cat = as.factor(recode(EDUCA,#recode education
+                      `1` = "less than high school",
+                      `2` = 'high school',
+                      `3` = 'college no degree',
+                      `4` = 'technical school',
+                      `5` = 'bachelor',
+                      `6` = 'graduate',
+                      `97` = 'others')),
+  lic_dum = as.factor(recode(LIC, #recode driver license status
+                      `1` = 'yes',
+                      `2` = 'no')),
+  park_sub_cat = as.factor(recode(PARK_SUB,#recode parking subsidy
+                           `2` = 'pay',
+                           `1` = 'part',
+                           `3` = 'free')),
+  transit_sub_cat = as.factor(recode(TRAN_SUB,#recode transit subsidy
+                              `2` = 'pay',
+                              `1` = 'part')))%>%
+  select(HH_ID, PERSON_ID,
+         mode_cat, gender_cat, age_cat,edu_cat, lic_dum, park_sub_cat, transit_sub_cat)
 
 #take household dataset
 #step 1. identify household variables that might be associated with mode choice
@@ -94,7 +157,7 @@ dat <- rbind.data.frame(dat.car, dat.transit, dat.bike)
 #Dept. of Energy est. $0.6/mile for driving
 dat$cost.car <- dat$travel_dist * 0.6 #+ dat$parking_cost #leave parking cost out for now
 
-#multiply 0.5 for non-monetary costs, add $2 for ticket
+#multiply 0.5 for non-monetary costs (bad experience), add $2 for ticket
 dat$cost.transit <- dat$travel_dist * 0.5 + 2
 
 #add $3 for non-monetary cost and wear and tear

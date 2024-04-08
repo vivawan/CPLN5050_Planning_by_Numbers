@@ -61,9 +61,9 @@ all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voti
 
 dat <- all %>%
   select(VCF0004,VCF0704a,
-         VCF0101,VCF0104,VCF0105a,VCF0128,VCF0114,VCF0140a,VCF0147,VCF0148a,VCF0108,VCF0111,
-         VCF0878, VCF9231,VCF9239,VCF0656,
-         VCF0302,VCF0113,VCF0705) %>%
+         VCF0101,VCF0104,VCF0105a,VCF0128,VCF0114,VCF0140a,VCF0147,VCF0148a,VCF0108,
+         VCF0878,VCF9239,VCF0656,
+         VCF0302,VCF0113,VCF9025) %>%
   filter(VCF0004 == 2012 | VCF0004 == 2016) %>%
   rename(# target variables
          year = VCF0004,
@@ -77,22 +77,34 @@ dat <- all %>%
          education = VCF0140a,
          class = VCF0148a,
          hispanic = VCF0108,
-         location = VCF0111,
          # political ideology
          lgbt = VCF0878,
-         foreign = VCF9231,
          gun = VCF9239,
          trust = VCF0656,
          # Political Affiliation
          party = VCF0302,
          south = VCF0113,
          govern = VCF9025)%>%
-  filter(gender!=3, race!=9, education!=9, class != 9, hispanic != c(8,9))
+  filter(candidate != 0)
+
+  filter(!(gender %in% c(0,3)), 
+         race != 9, 
+         religion !=0,
+         income != 0,
+         education!=9, 
+         class != 9, 
+         !(hispanic %in% c(8,9)),
+         !(lgbt %in% c(8,9)), #DK - 8 as a type?
+         !(gun %in% c(-8,-9)),
+         trust != 999,
+         !(party %in% c(8,9)),
+         govern !=0, #DK has 1400+ in 2016
+         )#all just 1702
   mutate(gender_cat = as.facter(recode(gender,
                                        `1` = 'male',
                                        `2` = 'female')))
   
-
+table(dat$candidate,dat$year)
 
 
 

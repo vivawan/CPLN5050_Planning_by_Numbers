@@ -182,12 +182,12 @@ dat.16 <- subset(dat[dat$year == 2016,])
 
 ```{r reclassify 2012}
 reclassify.var <- c('birth','race','income','education','class')
-plot <- list()
+plot.12 <- list()
 
 for (i in 1:length(reclassify.var)) {
   var = reclassify.var[i]
   
-  plot[[i]] <- dat.12 %>%
+  plot.12[[i]] <- dat.12 %>%
     select(candidate, !!sym(var)) %>% na.omit() %>%
     group_by(candidate,!!sym(var)) %>%
     summarize(count.vote = n(), .groups = 'drop') %>%
@@ -201,29 +201,8 @@ for (i in 1:length(reclassify.var)) {
         theme_bw()+
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
-  print(plot[[i]])
+  print(plot.12[[i]])
 }
-
-plot
-
-wrap_plots(plot, ncol = 2)
-
-# birth -> 1911-1942, 1943-1974, after1975
-dat.12 %>%
-  select(candidate, birth) %>% na.omit() %>%
-  group_by(candidate,birth) %>%
-  summarize(count.vote = n()) %>%
-  ungroup() %>%
-  group_by(birth)%>%
-  mutate(per = round(count.vote/sum(count.vote)*100), digit= 0)%>%
-  ungroup()%>%
-    ggplot(aes(birth,per)) +
-      geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
-      scale_fill_viridis(discrete = TRUE) +
-      labs(title = "Percentage of Voting by Birth Year in 2012") +
-      theme_bw()
-
-
 
 ```
 

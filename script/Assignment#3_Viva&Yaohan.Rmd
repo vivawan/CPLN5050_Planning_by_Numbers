@@ -51,8 +51,6 @@ conflicts_prefer(dplyr::recode)
 
 # Question 1
 ## Choose variable
-
-
 ```{r variable}
 # Viva's path
 all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voting_data.csv')
@@ -115,12 +113,12 @@ dat <- all %>%
                                   `7`='1895-1910',
                                   `8`='Before1895')),
          race = as.factor(recode(race,
-                                 `1`='White non-Hispanic',
-                                 `2`='Black non-Hispanic',
-                                 `3`='Asian or Pacific Islander, non-Hispanic',
-                                 `4`='American Indian or Alaska native non-Hispanic',
+                                 `1`='White',
+                                 `2`='Black',
+                                 `3`='Asian',
+                                 `4`='Indian',
                                  `5`='Hispanic',
-                                 `6`='Other or multiple races, non-Hispanic')),
+                                 `6`='Other')),
          religion = as.factor(recode(religion,
                                      `1`='Protestant',
                                      `2`='Roman Catholic',
@@ -132,14 +130,14 @@ dat <- all %>%
                                    `3`='34-67th',
                                    `4`='68-95th',
                                    `5`='96-100th')),
-         education = as.factor(recode(income,
-                                   `1`='8th-grade',
-                                   `2`='9-12th-grade',
-                                   `3`='high-school',
-                                   `4`='training',
-                                   `5`='no-degree',
-                                   `6`='bachelor',
-                                   `7`='advanced')),
+         education = as.factor(recode(education,
+                                   `1`='1-8th-grade',
+                                   `2`='2-9-12th-grade',
+                                   `3`='3-high-school',
+                                   `4`='4-training',
+                                   `5`='5-no-degree',
+                                   `6`='6-bachelor',
+                                   `7`='7-advanced')),
          class = as.factor(recode(class,
                                   `1`='1ave-working',
                                   `2`='2working',
@@ -147,10 +145,10 @@ dat <- all %>%
                                   `4`='4ave-middle',
                                   `5`='5middle',
                                   `6`='6upper-middle')),
-         hispanic = as.factor(recode(gender,
+         hispanic = as.factor(recode(hispanic,
                                        `1` = 'hispanic',
                                        `2` = 'non-hispanic')),
-         lgbt = as.factor(recode(gender,
+         lgbt = as.factor(recode(lgbt,
                                  `1` = 'yes',
                                  `2` = 'no',
                                  `3` = 'dk')),
@@ -180,6 +178,7 @@ dat.12 <- subset(dat[dat$year == 2012,])
 dat.16 <- subset(dat[dat$year == 2016,])
 ```
 
+## reclassify variable
 ```{r reclassify 2012}
 reclassify.var <- c('birth','race','income','education','class')
 plot.12 <- list()
@@ -203,6 +202,21 @@ for (i in 1:length(reclassify.var)) {
   
   print(plot.12[[i]])
 }
+
+dat.12 <- dat.12 %>% 
+  mutate(
+    birth = factor(case_when(
+      birth %in% c('1911-1926', '1927-1942') ~ '1911-1942',
+      birth %in% c('1943-1958', '1959-1974') ~ '1943-1974',
+      birth %in% c('1975-1990', 'after199') ~ 'after1975')),
+    race = factor(case_when(
+      race == 'White' ~ 'white',
+      race == 'Black' ~ 'black',
+      !(race %in% c('White','Black')) ~ 'others'),
+      
+    
+         )
+  
 
 ```
 

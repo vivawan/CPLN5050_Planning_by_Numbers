@@ -25,7 +25,6 @@ table.kable, table.table {
 }
 </style>
 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -48,9 +47,13 @@ conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::recode)
 ```
 
+
 # Question 1
-## Choose variable
-```{r variable}
+
+## Choose variables
+
+```{r variable_1}
+load(here::here("data/raw/cpln505_assignment3_voting_data_abb.rda"))
 # Viva's path
 all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voting_data.csv')
 # Yaohan's path
@@ -58,16 +61,15 @@ all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voti
 
 dat <- all %>%
   select(VCF0004,VCF0704a,
-         VCF0101,VCF0103,VCF0104,VCF0105a,VCF0128,VCF0114,VCF0140a,VCF0148a,VCF0108,
+         VCF0101,VCF0104,VCF0105a,VCF0128,VCF0114,VCF0140a,VCF0147,VCF0148a,VCF0108,
          VCF0878,VCF9239,VCF0656,
-         VCF0302,VCF0113) %>%
+         VCF0302,VCF0113,VCF9025) %>%
   filter(VCF0004 == 2012 | VCF0004 == 2016) %>%
   rename(# target variables
          year = VCF0004,
          candidate = VCF0704a, 
          # demographics
          age = VCF0101,
-         birth = VCF0103,
          gender = VCF0104,
          race = VCF0105a,
          religion = VCF0128,
@@ -81,142 +83,55 @@ dat <- all %>%
          trust = VCF0656,
          # Political Affiliation
          party = VCF0302,
-         south = VCF0113)%>%
-  filter(candidate != 0,
-         !(gender %in% c(0,3)), 
-           race != 9,
-           birth !=0,
-           religion !=0,
-           income != 0,
-           education!=9, 
-           class != 9, 
-           !(hispanic %in% c(8,9)),
-           !(lgbt %in% c(9)), 
-           !(gun %in% c(-8,-9)),
-           trust != 999,
-           !(party %in% c(8,9))) %>%
-  na.omit() %>%
-  mutate(candidate = as.factor(recode(candidate,
-                                     `1` = 'democrat',
-                                     `2` = 'republican')),
-         gender = as.factor(recode(gender,
+         south = VCF0113,
+         govern = VCF9025)%>%
+  filter(candidate != 0)
+
+  filter(!(gender %in% c(0,3)), 
+         race != 9, 
+         religion !=0,
+         income != 0,
+         education!=9, 
+         class != 9, 
+         !(hispanic %in% c(8,9)),
+         !(lgbt %in% c(8,9)), #DK - 8 as a type?
+         !(gun %in% c(-8,-9)),
+         trust != 999,
+         !(party %in% c(8,9)),
+         govern !=0, #DK has 1400+ in 2016
+         )#all just 1702
+  mutate(gender_cat = as.facter(recode(gender,
                                        `1` = 'male',
-                                       `2` = 'female')),
-         birth = as.factor(recode(birth,
-                                  `1`='after1991',
-                                  `2`='1975-1990',
-                                  `3`='1959-1974',
-                                  `4`='1943-1958',
-                                  `5`='1927-1942',
-                                  `6`='1911-1926',
-                                  `7`='1895-1910',
-                                  `8`='Before1895')),
-         race = as.factor(recode(race,
-                                 `1`='White',
-                                 `2`='Black',
-                                 `3`='Asian',
-                                 `4`='Indian',
-                                 `5`='Hispanic',
-                                 `6`='Other')),
-         religion = as.factor(recode(religion,
-                                     `1`='Protestant',
-                                     `2`='Roman Catholic',
-                                     `3`='Jewish',
-                                     `4`='Other')),
-         income = as.factor(recode(income,
-                                   `1`='0-16th',
-                                   `2`='17-33rd',
-                                   `3`='34-67th',
-                                   `4`='68-95th',
-                                   `5`='96-100th')),
-         education = as.factor(recode(education,
-                                   `1`='1-8th-grade',
-                                   `2`='2-9-12th-grade',
-                                   `3`='3-high-school',
-                                   `4`='4-training',
-                                   `5`='5-no-degree',
-                                   `6`='6-bachelor',
-                                   `7`='7-advanced')),
-         class = as.factor(recode(class,
-                                  `1`='1ave-working',
-                                  `2`='2working',
-                                  `3`='3upper-working',
-                                  `4`='4ave-middle',
-                                  `5`='5middle',
-                                  `6`='6upper-middle')),
-         hispanic = as.factor(recode(hispanic,
-                                       `1` = 'hispanic',
-                                       `2` = 'non-hispanic')),
-         lgbt = as.factor(recode(lgbt,
-                                 `1` = 'yes',
-                                 `2` = 'no',
-                                 `3` = 'dk')),
-         gun = as.factor(recode(gun,
-                                `1` = 'extreme',
-                                `2` = 'very',
-                                `3` = 'somewhat',
-                                `4`='not-too',
-                                `5`='not-at-all')),
-         trust = factor(case_when(
-           trust == 0 ~ "no",
-           trust <= 25 & trust >0 ~ "not-too",
-           trust <= 50 & trust > 25 ~ "some",
-           trust <= 75 & trust > 50 ~ "very",
-           trust >75 ~ "extreme")),
-         party = as.factor(recode(party,
-                                `5`='democrat',
-                                `1` = 'republican',
-                                `2` = 'Independent',
-                                `3` = 'none',
-                                `4`='other')),
-         south = as.factor(recode(south,
-                                 `1` = 'south',
-                                 `2` = 'non-south')))
-
-dat.12 <- subset(dat[dat$year == 2012,]) 
-dat.16 <- subset(dat[dat$year == 2016,])
-```
-
-## reclassify variable
-```{r reclassify 2012}
-reclassify.var <- c('birth','race','income','education','class')
-plot.12 <- list()
-
-for (i in 1:length(reclassify.var)) {
-  var = reclassify.var[i]
+                                       `2` = 'female')))
   
-  plot.12[[i]] <- dat.12 %>%
-    select(candidate, !!sym(var)) %>% na.omit() %>%
-    group_by(candidate,!!sym(var)) %>%
-    summarize(count.vote = n(), .groups = 'drop') %>%
-    group_by(!!sym(var))%>%
-    mutate(percentage = round(count.vote/sum(count.vote)*100), digit= 0)%>%
-    ungroup()%>%
-      ggplot(aes(!!sym(var),percentage)) +
-        geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
-        scale_fill_viridis(discrete = TRUE) +
-        labs(title = paste("Percentage of Voting by", var, "in 2012")) +
-        theme_bw()+
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  print(plot.12[[i]])
-}
+table(dat$candidate,dat$year)
 
-dat.12 <- dat.12 %>% 
-  mutate(
-    birth = factor(case_when(
-      birth %in% c('1911-1926', '1927-1942') ~ '1911-1942',
-      birth %in% c('1943-1958', '1959-1974') ~ '1943-1974',
-      birth %in% c('1975-1990', 'after199') ~ 'after1975')),
-    race = factor(case_when(
-      race == 'White' ~ 'white',
-      race == 'Black' ~ 'black',
-      !(race %in% c('White','Black')) ~ 'others'),
-      
-    
-         )
-  
 
+
+##clean data
+dat <- dat.voting %>%
+  filter(VCF0004 == 2012 | VCF0004 == 2016) %>%
+  rename(candidate = VCF0704a, 
+         year = VCF0004,
+         gender = VCF0104,
+         race = VCF0105a,
+         religion = VCF0128,
+         income = VCF0114,
+         education = VCF0140a,
+         marital = VCF0147,
+         class = VCF0148a,
+         party = VCF0302,
+         hispanic = VCF0108,
+         south = VCF0113) %>%
+  select(year, candidate, race) %>%
+  filter(race != 9, candidate != 0) %>%
+  mutate(race_cat = as.factor(recode(race,
+                                     `1` = "white",
+                                     `2` = "black",
+                                     `3` = "other",
+                                     `4` = "other",
+                                     `5` = "other",
+                                     `6` = "other")))
 ```
 
 
@@ -378,3 +293,4 @@ dat.bike$time.car <- 60*(dat.bike$travel_dist/ave.speed$ave_speed[2])
 dat.bike$time.transit <- 60*(dat.bike$travel_dist/ave.speed$ave_speed[3]) + 10
 
 ```
+

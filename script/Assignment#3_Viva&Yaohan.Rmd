@@ -10,7 +10,6 @@ output:
     toc_float: yes
     code_folding: hide
     number_sections: no
-    fontsize: 12pt
   pdf_document:
     toc: yes
 ---
@@ -41,7 +40,7 @@ p_load(tidyverse, sf, units, nngeo, tmap, tinytex, kableExtra, janitor, classInt
        patchwork, here, tidycensus, lwgeom, lsr, haven, descr, RColorBrewer, stargazer,
        car, FNN, GGally, MASS, ISLR2, spdep, caret, ckanr, grid, gridExtra, ggcorrplot,
        jtools, broom, tufte, rmarkdown, corrr, RSocrata, viridis, spatstat, raster, knitr,
-       classInt)
+       arm, mlogit, readxl, lubridate)
 
 library(conflicted)
 conflicts_prefer(dplyr::select)
@@ -221,3 +220,161 @@ dat.12 <- dat.12 %>%
 ```
 
 
+# Question 2
+
+## Choose variables
+
+```{r variable_2}
+# load HHTS datasets
+hh <- read_excel(here::here("data/raw/1_Household_Public.xlsx"))
+per <- read_excel(here::here("data/raw/2_Person_Public.xlsx"))
+veh <- read_excel(here::here("data/raw/3_Vehicle_Public.xlsx"))
+trip <- read_excel(here::here("data/raw/4_Trip_Public.xlsx"))
+
+## trip dataset
+trip_work <- trip %>%
+  filter(D_LOC_TYPE == 2 & MODE_AGG %in% c(2,3,5))%>% # destination location type & mode aggregated
+  mutate(mode_cat = as.factor(recode(MODE_AGG,
+    `3` = "car",
+    `2` = "bike",
+    `5` = "transit")))%>%
+  group_by(PERSON_ID) %>%
+  slice(1) %>% # keep only the first row for each group
+  ungroup()%>% # optionally, ungroup the data frame
+  select(HH_ID, 
+         PERSON_ID,
+         mode_cat,
+         Model_TravTime,
+         Model_TravDist) %>%
+  rename(travel_dist = Model_TravDist,
+    travel_time = Model_TravTime) %>%
+  filter(!is.na(travel_time) & !is.na(travel_dist))
+
+table(is.na(trip_work$travel_time))
+table(is.na(trip_work$travel_time))
+
+## person dataset
+per_work <- per %>%
+  filter(GEND != 99) %>%
+  mutate(gender_cat = as.factor(recode(GEND, # recode gender
+                         `1` = 'male',
+                         `2` = 'female'))) %>%
+  filter(AGECAT < 98) %>%
+  mutate(age_cat = as.factor(recode(AGECAT, # recode age
+                      `1` = '0-5',
+                      `2` = '6-12',
+                      `3` = '13-15',
+                      `4` = '16-17',
+                      `5` = '18-24',
+                      `6` = '25-34',
+                      `7` = '35-44',
+                      `8` = '45-54',
+                      `9` = '55-64',
+                      `10` = '65-74',
+                      `11` = '75-85',
+                      `12` = '86+'))) %>%
+  filter(RACE != 98 & RACE != 99) %>%
+  mutate(race_cat = as.factor(recode(RACE, # recode race
+                      `1` = 'white',
+                      `2` = 'black',
+                      `3` = 'hispanic',
+                      `4` = 'american indian',
+                      `5` = 'asian',
+                      `6` = 'native hawaiian',
+                      `97` = 'others',
+                      `100` = 'multi-race',
+                      `988` = 'pilot'))) %>%
+  filter(EDUCA < 98) %>%
+  mutate(edu_cat = as.factor(recode(EDUCA, # recode education
+                      `1` = 'less than high school',
+                      `2` = 'high school',
+                      `3` = 'college no degree',
+                      `4` = 'technical school',
+                      `5` = 'bachelor',
+                      `6` = 'graduate',
+                      `97` = 'others'))) %>%
+  filter(LIC < 98) %>%
+  mutate(lic_dum = as.factor(recode(LIC, # recode driver license status
+                      `1` = 'yes',
+                      `2` = 'no'))) %>%
+  filter(PARK_SUB < 8) %>%
+  mutate(park_sub_cat = as.factor(recode(PARK_SUB, # recode parking subsidy
+                           `2` = 'pay',
+                           `1` = 'subsidize',
+                           `3` = 'free'))) %>%
+  filter(TRAN_SUB < 8) %>%
+  mutate(transit_sub_cat = as.factor(recode(TRAN_SUB, # recode transit subsidy
+                              `2` = 'pay',
+                              `1` = 'subsidize'))) %>%
+  select(HH_ID, PERSON_ID,
+        gender_cat, age_cat, race_cat, edu_cat, lic_dum, park_sub_cat, transit_sub_cat)
+
+## household dataset
+hh_work <- hh %>%
+  filter(OP_VEH <= TOT_VEH) %>%
+  select(HH_ID, # household ID
+         OP_VEH, # total household vehicles in working condition
+         TOT_BIKE, # number of bicycles in household
+         TOLL_ACCNT, # household maintains toll road/bridge account
+         CAR_SHARE, # household maintains a car sharing membership/rents cars
+         INCOME # household income
+         ) %>%
+  filter(OP_VEH < 98 & TOT_BIKE < 98 & TOLL_ACCNT < 98 & CAR_SHARE < 98 & INCOME < 98) %>%
+  rename(veh_num = OP_VEH,
+         bike_num = TOT_BIKE,
+         toll_accnt = TOLL_ACCNT,
+         car_share = CAR_SHARE,
+         income = INCOME) %>%
+  mutate(toll_accnt_dum = as.factor(recode(toll_accnt,
+                            `1` = 'yes',
+                            `2` = 'no')),
+         car_share_dum = as.factor(recode(car_share,
+                            `1` = 'yes',
+                            `2` = 'no')),
+         income = as.factor(recode(income,
+                            `1` = '$0 to $9,999',
+                            `2` = '$10,000 to $24,999',
+                            `3` = '$25,000 to $34,999',
+                            `4` = '$35,000 to $49,999',
+                            `5` = '$50,000 to $74,999',
+                            `6` = '$75,000 to $99,999',
+                            `7` = '$100,000 to $149,999',
+                            `8` = '$150,000 to $199,999',
+                            `9` = '$200,000 to $249,999',
+                            `10` = '$250,000 or more')))
+
+# combine three datasets
+dat <- trip_work %>%
+  left_join(per_work, by = c("PERSON_ID", "HH_ID")) %>%
+  left_join(hh_work, by = "HH_ID") %>%
+  filter_all(all_vars(!is.na(.))) %>% # remove all NAs
+  filter(travel_dist < 10 & travel_time < 120) # remove outliers (people who travel < 10 miles and < 120 minutes)
+
+table(dat$mode_cat)
+```
+
+## Calculate travel time and travel costs
+
+```{r time_cost}
+# calculate average speed for each mode
+ave.speed <- dat %>% group_by(mode_cat) %>%
+  summarise(ave_speed = mean(travel_dist/(travel_time/60)))
+
+# calculate travel time for alternative modes
+dat.car <- dat %>% filter(mode_cat == "car")
+dat.transit <- dat %>% filter(mode_cat == "transit")
+dat.bike <- dat %>% filter(mode_cat == "bike")
+
+dat.car$time.car <- dat.car$travel_time
+dat.car$time.transit <- 60*(dat.car$travel_dist/ave.speed$ave_speed[3]) + 10 # add 10 minutes for waiting and walking to station
+dat.car$time.bike <- 60*(dat.car$travel_dist/ave.speed$ave_speed[1])
+
+dat.transit$time.transit <- dat.transit$travel_time + 10
+dat.transit$time.car <- 60*(dat.transit$travel_dist/ave.speed$ave_speed[2])
+dat.transit$time.bike <- 60*(dat.transit$travel_dist/ave.speed$ave_speed[1])
+
+dat.bike$time.bike <- dat.bike$travel_time
+dat.bike$time.car <- 60*(dat.bike$travel_dist/ave.speed$ave_speed[2])
+dat.bike$time.transit <- 60*(dat.bike$travel_dist/ave.speed$ave_speed[3]) + 10
+
+```

@@ -92,6 +92,10 @@ dat$cost.transit <- dat$travel_dist * 0.5 + 2
 #add $3 for non-monetary cost and wear and tear
 #Logan et al. (2023) #https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10546027/
 dat$cost.bike <- dat$travel_dist + 3 
+# inflated the cost of biking manually, because driving is always more costly than biking
+# -> but driving population is larger than those biking
+# -> model thinks the higher the cost, the more people choose
+# -> manually adjust
 
 #shaping data into correct format
 library(mlogit)
@@ -112,8 +116,11 @@ dat.logit <- mlogit.data(dat, shape="wide",
 
 names(dat)
 #fit a simple one for now
-mod.1 <- mlogit (mode_cat ~ cost + time | income_cat, data = dat.logit)
+mod.1 <- mlogit (mode_cat ~ cost + time | income_cat, data = dat.logit, reflevel = "car")
 summary(mod.1)
+# treat income as continuous, because 10 categories with the same interval
+# could be category but should be classified 
+# if given the real income, will use the log(income), interpret as increase by x%
 
 #predicting
 mode.prob <- data.frame(predict(mod.1, type = "response", newdata = dat.logit))
@@ -121,7 +128,7 @@ dat <- cbind.data.frame(dat, mode.prob)
 
 dat$pred_mode <- 0
 
-#this predicts bike poorly
+#this predicts bike poorly -> no one bikes
 for (i in 1:length(dat$hh_id)) {
   if (dat$car[i] > dat$bike[i] & dat$car[i] > dat$transit[i]) {
     dat$pred_mode[i] = "car"
@@ -131,10 +138,12 @@ for (i in 1:length(dat$hh_id)) {
     dat$pred_mode[i] = "bike"
   }
 }
+table(dat$pre_mode)
 
 #use actual share in observed as thresholds
 table(dat$mode_cat)/length(dat$mode_cat)
 
+# use the actual share as the threshold
 for (i in 1:length(dat$hh_id)) {
   if (dat$car[i] > ) {
     dat$pred_mode[i] = "car"
@@ -145,6 +154,7 @@ for (i in 1:length(dat$hh_id)) {
   }
 }
 
+# calculate the average probability for each column
 apply(predict(mod.1, type = "response", newdata = dat.logit), 2, mean)
 
 #calculate model fit statistics####

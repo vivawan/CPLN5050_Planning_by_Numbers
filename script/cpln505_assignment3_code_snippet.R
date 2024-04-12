@@ -5,7 +5,7 @@ library(arm)
 library(tidyverse)
 
 #VOTING####
-load("cpln505_assignment3_voting_data_abb.rda")
+load(here::here("data/raw/cpln505_assignment3_voting_data_abb.rda"))
 
 #Here is some data cleaning code to get you started
 dat <- dat.voting %>% filter(VCF0004 == 2012 | VCF0004 == 2016) %>%

@@ -101,7 +101,7 @@ per_work <- per %>%
                       `10` = '65-74',
                       `11` = '75-85',
                       `12` = '86+'))) %>%
-  filter(RACE != 98 & RACE != 99) %>%
+  filter(RACE != 98 & RACE != 99 & RACE != 988) %>%
   mutate(race_cat = as.factor(recode(RACE, # recode race
                       `1` = 'white',
                       `2` = 'black',
@@ -110,8 +110,7 @@ per_work <- per %>%
                       `5` = 'asian',
                       `6` = 'native hawaiian',
                       `97` = 'others',
-                      `100` = 'multi-race',
-                      `988` = 'pilot'))) %>%
+                      `100` = 'multi-race'))) %>%
   filter(EDUCA < 98) %>%
   mutate(edu_cat = as.factor(recode(EDUCA, # recode education
                       `1` = 'less than high school',
@@ -250,6 +249,32 @@ dat %>%
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+table(dat$age_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(age_cat_re = factor(case_when(
+    age_cat %in% c('0-5', '6-12', '13-15', '16-17', '18-24') ~ 'under 24',
+    age_cat %in% c('25-34', '35-44', '45-54', '55-64', '65-74') ~ '25-74',
+    age_cat %in% c('75-85', '86+') ~ 'above 75')))
+
+dat %>%
+  select(mode_cat, age_cat_re) %>%
+  group_by(age_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(age_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(age_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Age Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$age_cat_re,dat$mode_cat)
+
 ## race categories
 dat %>%
   select(mode_cat, race_cat) %>%
@@ -266,6 +291,32 @@ dat %>%
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+table(dat$race_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(race_cat_re = factor(case_when(
+    race_cat %in% c('white') ~ 'white',
+    race_cat %in% c('american indian', 'asian', 'black', 'hispanic', 'multi-race',
+                    'native hawaiian', 'others') ~ 'non-white')))
+
+dat %>%
+  select(mode_cat, race_cat_re) %>%
+  group_by(race_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(race_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(race_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Race Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$race_cat_re,dat$mode_cat)
+
 ## education categories
 dat %>%
   select(mode_cat, edu_cat) %>%
@@ -281,6 +332,8 @@ dat %>%
       labs(title = "Percentage of Mode Choice by Education Categories") +
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$edu_cat,dat$mode_cat)
 
 ## income categories
 dat %>%
@@ -329,6 +382,10 @@ dat %>%
       labs(title = "Percentage of Mode Choice by Number of Bicycles in Household") +
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
 ```
 
 ## Build multinomial logistic model

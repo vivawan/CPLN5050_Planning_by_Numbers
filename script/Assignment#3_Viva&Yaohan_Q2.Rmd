@@ -468,8 +468,7 @@ table(dat$bike_num_cat,dat$mode_cat)
 dat <- dat %>%
   mutate(bike_num_cat_re = factor(case_when(
     bike_num_cat %in% c('0') ~ 'no bikes',
-    bike_num_cat %in% c('1', '2', '3', '4') ~ 'one to four bikes',
-    bike_num_cat %in% c('5', '6', '7', '8', '9', '12') ~ 'five bikes or more')))
+    bike_num_cat %in% c('1', '2', '3', '4', '5', '6', '7', '8', '9', '12') ~ 'with bikes')))
 
 dat %>%
   select(mode_cat, bike_num_cat_re) %>%
@@ -491,22 +490,148 @@ table(dat$bike_num_cat_re,dat$mode_cat)
 
 ## Build multinomial logistic model
 
+### Initial variable selection
+
 ```{r multinomial_regression}
 # shape data into correct format
 dat.logit <- mlogit.data(dat, shape="wide", 
                       choice="mode_cat", 
                       varying=c(20:25))
 
-# initial variable selection
 names(dat.logit)
 
-## 
-mod.1 <- mlogit (mode_cat ~ cost + time | gender_cat + age_cat + age_cat_re + race_cat + race_cat_re + edu_cat + edu_cat_re + lic_dum
-                 + park_sub_cat + transit_sub_cat + veh_num + veh_num_cat + veh_num_cat_re + bike_num + bike_num_cat + bike_num_cat_re
-                 + toll_accnt_dum + car_share_dum + income_cat + income_cat_re, data = dat.logit)
-summary(mod.1)
+## age_cat & age_cat_re —> none
+mod1.2 <- mlogit (mode_cat ~ cost + time | age_cat_re, data = dat.logit, reflevel = "car")
+summary(mod1.2)
+
+## race_cat & race_cat_re —> race_cat_re
+mod2.2 <- mlogit (mode_cat ~ cost + time | race_cat_re, data = dat.logit, reflevel = "car")
+summary(mod2.2)
+
+## edu_cat & edu_cat_re —> edu_cat_re
+mod3.1 <- mlogit (mode_cat ~ cost + time | edu_cat, data = dat.logit, reflevel = "car")
+mod3.2 <- mlogit (mode_cat ~ cost + time | edu_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod3.1, mod3.2, type = "text")
+
+## veh_num & veh_num_cat & veh_num_cat_re —> veh_num
+mod4.1 <- mlogit (mode_cat ~ cost + time | veh_num, data = dat.logit, reflevel = "car")
+mod4.3 <- mlogit (mode_cat ~ cost + time | veh_num_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod4.1, mod4.3, type = "text")
+
+## bike_num & bike_num_cat & bike_num_cat_re —> bike_num
+mod5.1 <- mlogit (mode_cat ~ cost + time | bike_num, data = dat.logit, reflevel = "car")
+mod5.3 <- mlogit (mode_cat ~ cost + time | bike_num_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod5.1, mod5.3, type = "text")
+
+## income_cat & income_cat_re —> income_cat_re
+mod6.1 <- mlogit (mode_cat ~ cost + time | income_cat, data = dat.logit, reflevel = "car")
+mod6.2 <- mlogit (mode_cat ~ cost + time | income_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod6.1, mod6.2, type = "text")
 ```
 
+### Summary table
+
+```{r summary}
+# continuous variables
+dat_summary <- as.data.frame(dat.logit)[as.data.frame(dat.logit)$mode_cat, ]
+
+dat_summary <- dat_summary %>%
+  summarise(across(c(cost, time, veh_num, bike_num),
+                   list(maximum = ~ max(., na.rm = TRUE),
+                        minimum = ~ min(., na.rm = TRUE),
+                        mean = ~ mean(., na.rm = TRUE),
+                        standard_deviation = ~ sd(., na.rm = TRUE)),
+                   .names = "{.col}:{.fn}")) %>%
+  pivot_longer(cols = everything(), names_to = c("variables", "statistic"),
+               names_sep = ":", values_to = "value") %>%
+  mutate(value = round(value, digits = 2)) %>%
+  pivot_wider(names_from = statistic, values_from = value)
+
+# categorical variables
+## table
+var_cat <- c('gender_cat', 'race_cat_re', 'edu_cat_re', 'lic_dum', 'park_sub_cat',
+             'transit_sub_cat', 'toll_accnt_dum', 'car_share_dum', 'income_cat_re')
+table_cat <- list()
+
+for (i in 1:length(var_cat)){
+  table_cat[[i]] <- dat %>%
+    group_by(!!sym(var_cat[[i]]), mode_cat) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(!!sym(var_cat[[i]])) %>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+           variable = var_cat[[i]],
+           category = as.character(!!sym(var_cat[[i]])),
+           choice = as.character(mode_cat)) %>%
+    ungroup() %>%
+    select(variable, category, choice, count, percentage)}
+
+bind_rows(table_cat) %>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for Mode Choice</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
+  column_spec(1:5, extra_css = "text-align: left;") %>%
+  collapse_rows(columns = 1:2, valign = "middle")
+
+## plot
+plot_cat <- list()
+
+for (i in 1:length(var_cat)) {
+  plot_cat[[i]] <- dat %>%
+    select(mode_cat, !!sym(var_cat[[i]])) %>% na.omit() %>%
+    group_by(mode_cat, !!sym(var_cat[[i]])) %>%
+    summarize(count.mode = n(), .groups = 'drop') %>%
+    group_by(!!sym(var_cat[[i]]))%>%
+    mutate(percentage = round(count.mode/sum(count.mode)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var_cat[[i]]),percentage)) +
+        geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot_cat, ncol = 3) + 
+  plot_layout(guides = 'collect') +
+  plot_annotation(title = "Percentage of Mode Choice by Category",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+```
+
+
+### Final model
+
+```{r final_model}
+mod7 <- mlogit (mode_cat ~ cost + time | gender_cat + race_cat_re + edu_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num + toll_accnt_dum
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod7)
+
+## remove edu_cat_re
+mod8 <- mlogit (mode_cat ~ cost + time | gender_cat + race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num + toll_accnt_dum
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod8)
+lrtest(mod8, mod7)
+
+## remove toll_accnt_dum
+mod9 <- mlogit (mode_cat ~ cost + time | gender_cat + race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod9)
+lrtest(mod9, mod8)
+
+## remove gender_cat
+mod10 <- mlogit (mode_cat ~ cost + time | race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod10)
+lrtest(mod10, mod9)
+
+## remove car_share_dum
+mod11 <- mlogit (mode_cat ~ cost + time | race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num
+                 + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod11)
+lrtest(mod11, mod10)
+```
 
 
 

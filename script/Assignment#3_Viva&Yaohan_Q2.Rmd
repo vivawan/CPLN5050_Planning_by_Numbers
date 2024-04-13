@@ -497,6 +497,14 @@ dat.logit <- mlogit.data(dat, shape="wide",
                       choice="mode_cat", 
                       varying=c(20:25))
 
+# initial variable selection
+names(dat.logit)
+
+## 
+mod.1 <- mlogit (mode_cat ~ cost + time | gender_cat + age_cat + age_cat_re + race_cat + race_cat_re + edu_cat + edu_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + veh_num_cat + veh_num_cat_re + bike_num + bike_num_cat + bike_num_cat_re
+                 + toll_accnt_dum + car_share_dum + income_cat + income_cat_re, data = dat.logit)
+summary(mod.1)
 ```
 
 

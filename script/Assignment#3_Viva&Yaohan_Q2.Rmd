@@ -335,6 +335,30 @@ dat %>%
 
 table(dat$edu_cat,dat$mode_cat)
 
+### reclassification
+dat <- dat %>%
+  mutate(edu_cat_re = factor(case_when(
+    edu_cat %in% c('bachelor', 'graduate') ~ 'bachelor or higher',
+    edu_cat %in% c('college no degree', 'high school', 'less than high school',
+                   'others', 'technical school') ~ 'without bachelor')))
+
+dat %>%
+  select(mode_cat, edu_cat_re) %>%
+  group_by(edu_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(edu_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(edu_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Education Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$edu_cat_re,dat$mode_cat)
+
 ## income categories
 dat %>%
   select(mode_cat, income_cat) %>%
@@ -350,6 +374,35 @@ dat %>%
       labs(title = "Percentage of Mode Choice by Income Categories") +
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$income_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(income_cat_re = factor(case_when(
+    income_cat %in% c('$0 to $9,999', '$10,000 to $24,999', '$25,000 to $34,999',
+                      '$35,000 to $49,999') ~ 'low income',
+    income_cat %in% c('$50,000 to $74,999', '$75,000 to $99,999', '$100,000 to $149,999')
+    ~ 'middle income',
+    income_cat %in% c('$150,000 to $199,999', '$200,000 to $249,999', '$250,000 or more')
+    ~ 'high income')))
+
+dat %>%
+  select(mode_cat, income_cat_re) %>%
+  group_by(income_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(income_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(income_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Income Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$income_cat_re,dat$mode_cat)
 
 ## total household vehicles in working condition
 dat %>%
@@ -367,6 +420,32 @@ dat %>%
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+table(dat$veh_num_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(veh_num_cat_re = factor(case_when(
+    veh_num_cat %in% c('0') ~ 'no vehicles',
+    veh_num_cat %in% c('1') ~ 'one vehicle',
+    veh_num_cat %in% c('2', '3', '4', '5') ~ 'two vehicles or more')))
+
+dat %>%
+  select(mode_cat, veh_num_cat_re) %>%
+  group_by(veh_num_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(veh_num_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(veh_num_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Total Household Vehicles in Working Condition (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$veh_num_cat_re,dat$mode_cat)
+
 ## number of bicycles in household
 dat %>%
   select(mode_cat, bike_num_cat) %>%
@@ -383,21 +462,41 @@ dat %>%
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+table(dat$bike_num_cat,dat$mode_cat)
 
+### reclassification
+dat <- dat %>%
+  mutate(bike_num_cat_re = factor(case_when(
+    bike_num_cat %in% c('0') ~ 'no bikes',
+    bike_num_cat %in% c('1', '2', '3', '4') ~ 'one to four bikes',
+    bike_num_cat %in% c('5', '6', '7', '8', '9', '12') ~ 'five bikes or more')))
 
+dat %>%
+  select(mode_cat, bike_num_cat_re) %>%
+  group_by(bike_num_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(bike_num_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(bike_num_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Number of Bicycles in Household (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+table(dat$bike_num_cat_re,dat$mode_cat)
 ```
 
 ## Build multinomial logistic model
 
 ```{r multinomial_regression}
-#shaping data into correct format
-library(mlogit)
+# shape data into correct format
 dat.logit <- mlogit.data(dat, shape="wide", 
                       choice="mode_cat", 
-                      varying=c(22:27)) 
-#the 22:27 are column numbers of the alternative specific variables we created
-#your column numbers might not be the same as mine
+                      varying=c(20:25))
+
 ```
 
 

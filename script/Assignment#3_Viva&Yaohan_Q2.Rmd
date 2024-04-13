@@ -334,7 +334,13 @@ dat %>%
 ## Build multinomial logistic model
 
 ```{r multinomial_regression}
-
+#shaping data into correct format
+library(mlogit)
+dat.logit <- mlogit.data(dat, shape="wide", 
+                      choice="mode_cat", 
+                      varying=c(22:27)) 
+#the 22:27 are column numbers of the alternative specific variables we created
+#your column numbers might not be the same as mine
 ```
 
 

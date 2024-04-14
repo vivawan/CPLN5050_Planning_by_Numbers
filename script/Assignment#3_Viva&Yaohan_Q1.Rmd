@@ -48,13 +48,36 @@ conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::recode)
 ```
 
-# Question 1
-## Choose variable
+# Variable Selection  
+
+## initial selection  
+
+1. target variable  
+- year: year of the study
+- candidate: VOTE FOR PRESIDENT- MAJOR PARTIES
+2. Voter Demographics  
+- age: age  
+- birth: Birth Year  
+- gender: GENDER  
+- race:RACE-ETHNICITY SUMMARY, 4 CATEGORIES  
+- religion: RELIGION MAJOR GROUP  
+- income:FAMILY - INCOME GROUP   
+- education: EDUCATION 7-CATEGORY  
+- class: AVERAGE OR UPPER MIDDLE/WORKING CLASS  
+- hispanic: HISPANIC ORIGIN TYPE  
+2. Political Attitudes and Beliefs   
+- lgbt:Should Gays/Lesbians Be Able to Adopt Children  
+- gun:How important is gun control issue   
+- trust:TRUST IN GOVERNMENT INDEX  
+3. Political Affiliation  
+- party:PARTY IDENTIFICATION OF RESPONDENT- INITIAL PARTY  
+- south:POLITICAL SOUTH/NONSOUTH  
+
 ```{r variable}
 # Viva's path
 all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voting_data.csv')
 # Yaohan's path
-all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voting_data.csv')
+#all <- read_csv('/Users/Viva Wan/Documents/GitHub/Local/cpln505_assignment3_voting_data.csv')
 
 dat <- all %>%
   select(VCF0004,VCF0704a,
@@ -95,14 +118,25 @@ dat <- all %>%
            !(gun %in% c(-8,-9)),
            trust != 999,
            !(party %in% c(8,9))) %>%
-  na.omit() %>%
-  mutate(candidate = as.factor(recode(candidate,
+  na.omit()%>%
+  mutate(across(.cols = -c(year, age, trust), .fns = as.factor))
+
+# examine the quantity of each category
+summary(dat)
+```
+
+```{r recode}
+# recode, reclassify based on quantity, assign the level
+dat <- dat %>%
+  mutate(candidate = factor(recode(candidate,
                                      `1` = 'democrat',
-                                     `2` = 'republican')),
-         gender = as.factor(recode(gender,
+                                     `2` = 'republican'),
+                               levels = c('democrat', 'republican')),
+         gender = factor(recode(gender,
                                        `1` = 'male',
-                                       `2` = 'female')),
-         birth = as.factor(recode(birth,
+                                       `2` = 'female'),
+                            levels = c('male', 'female')),
+         birth = factor(recode(birth,
                                   `1`='after1991',
                                   `2`='1975-1990',
                                   `3`='1959-1974',
@@ -110,75 +144,138 @@ dat <- all %>%
                                   `5`='1927-1942',
                                   `6`='1911-1926',
                                   `7`='1895-1910',
-                                  `8`='Before1895')),
-         race = as.factor(recode(race,
+                                  `8`='Before1895'),
+                           levels = c('after1991', '1975-1990',
+                                      '1959-1974', '1943-1958',
+                                      '1927-1942', '1911-1926',
+                                      '1895-1910', 'Before1895')),
+         race = factor(recode(race,
                                  `1`='White',
                                  `2`='Black',
                                  `3`='Asian',
                                  `4`='Indian',
                                  `5`='Hispanic',
-                                 `6`='Other')),
-         religion = as.factor(recode(religion,
+                                 `6`='Other'),
+                          levels = c('White', 'Black','Asian','Indian','Hispanic','Other')),
+         religion = factor(recode(religion,
                                      `1`='Protestant',
-                                     `2`='Roman Catholic',
+                                     `2`='RomanCatholic',
                                      `3`='Jewish',
-                                     `4`='Other')),
-         income = as.factor(recode(income,
+                                     `4`='Other'),
+                              levels = c('Protestant', 'RomanCatholic', 'Jewish','Other')),
+         income = factor(recode(income,
                                    `1`='0-16th',
                                    `2`='17-33rd',
                                    `3`='34-67th',
                                    `4`='68-95th',
-                                   `5`='96-100th')),
-         education = as.factor(recode(education,
-                                   `1`='1-8th-grade',
-                                   `2`='2-9-12th-grade',
-                                   `3`='3-high-school',
-                                   `4`='4-training',
-                                   `5`='5-no-degree',
-                                   `6`='6-bachelor',
-                                   `7`='7-advanced')),
-         class = as.factor(recode(class,
-                                  `1`='1ave-working',
-                                  `2`='2working',
-                                  `3`='3upper-working',
-                                  `4`='4ave-middle',
-                                  `5`='5middle',
-                                  `6`='6upper-middle')),
-         hispanic = as.factor(recode(hispanic,
+                                   `5`='96-100th'),
+                            levels = c('0-16th', '17-33rd','34-67th','68-95th','96-100th')),
+         education = factor(recode(education,
+                                   `1`='8th-grade',
+                                   `2`='9-12th-grade',
+                                   `3`='high-school',
+                                   `4`='training',
+                                   `5`='no-degree',
+                                   `6`='bachelor',
+                                   `7`='advanced'),
+                               levels = c('8th-grade', '9-12th-grade', 'high-school',
+                                          'training','no-degree','bachelor','advanced')),
+         class = factor(recode(class, 
+                                  `1`='working',#ave-working
+                                  `2`='working',#working only 9 observation->ave-working
+                                  `3`='upper-working',
+                                  `4`='middle',#ave-middle
+                                  `5`='middle',#middle only 9 observation->ave-middle
+                                  `6`='upper-middle'),
+                           levels = c('working', 'upper-working',
+                                      'middle','upper-middle')),
+         hispanic = factor(recode(hispanic,
                                        `1` = 'hispanic',
-                                       `2` = 'non-hispanic')),
-         lgbt = as.factor(recode(lgbt,
+                                       `2` = 'non-hispanic'),
+                              levels = c('hispanic', 'non-hispanic')),
+         lgbt = factor(recode(lgbt,
                                  `1` = 'yes',
-                                 `2` = 'no',
-                                 `3` = 'dk')),
-         gun = as.factor(recode(gun,
+                                 `5` = 'no',
+                                 `8` = 'dk'),
+                          levels = c('yes', 'no','dk')),
+         gun = factor(recode(gun,
                                 `1` = 'extreme',
                                 `2` = 'very',
                                 `3` = 'somewhat',
                                 `4`='not-too',
-                                `5`='not-at-all')),
+                                `5`='not-at-all'),
+                         levels = c('not-at-all','not-too', 'somewhat','very','extreme')),
          trust = factor(case_when(
            trust == 0 ~ "no",
-           trust <= 25 & trust >0 ~ "not-too",
+           trust <= 25 & trust > 0 ~ "not-too",
            trust <= 50 & trust > 25 ~ "some",
            trust <= 75 & trust > 50 ~ "very",
-           trust >75 ~ "extreme")),
-         party = as.factor(recode(party,
-                                `5`='democrat',
+           trust >75 ~ "extreme"),
+           levels = c('no', 'not-too', 'some', 'very', 'extreme')),
+         party = factor(recode(party,
                                 `1` = 'republican',
-                                `2` = 'Independent',
-                                `3` = 'none',
-                                `4`='other')),
-         south = as.factor(recode(south,
+                                `2` = 'independent',
+                                `3` = 'other',#none only 50 -> other
+                                `4`='other',#other only 99
+                                `5`='democrat'),
+                           levels = c('democrat', 'republican','independent','other')), 
+         south = factor(recode(south,
                                  `1` = 'south',
-                                 `2` = 'non-south')))
+                                 `2` = 'non-south'),
+                           levels = c('south', 'non-south')))
+
+summary(dat)
 
 dat.12 <- subset(dat[dat$year == 2012,]) 
 dat.16 <- subset(dat[dat$year == 2016,])
+
+summary(dat.12)
+summary(dat.16)
 ```
 
 ## reclassify variable
+
+**RACE**
+1. White Population: White non-Hispanic  
+2. Black Population: Black non-Hispanic  
+3. Others Population:  
+- Asian or Pacific Islander, non-Hispanic  
+- American Indian or Alaska native non-Hispanic   
+- Hispanic  
+- Other or multiple races, non-Hispanic  
+
+**BIRTH YEAR**
+1. Early 20th Century Group: 1911-1942 ('early')  
+This category captures the birth years from early to mid-20th century, encompassing individuals typically referred to as part of the Greatest Generation and the older part of the Silent Generation.  
+2. Mid 20th Century Group: 1943-1974 ('middle')  
+This spans the birth years that include the younger Silents, Baby Boomers, and the older members of Generation X, reflecting a period of significant cultural and social change.  
+3. Late 20th Century Onwards: after 1975 ('late')  
+This category starts from 1975 and includes all subsequent years. It generally includes the younger Generation X, Millennials (Generation Y), and the start of Generation Z, marking those born in the later part of the 20th century and into the 21st century.
+
+**EDUCATION**  
+1. Basic Education ('basic')
+- 8th grades or less (grade school)  
+- 9-12th grades with no diploma
+2. High School and Vocational Education ('highschool')
+- High school diploma  
+- High school plus non-academic training  
+- Some college with no degree  
+3. Above Bachelor ('bachelor')
+- Bachelor-level degrees  
+- Advanced degrees  
+
+**CLASS**
+1. Working Class
+- Average working  
+- Working (don’t know average or upper working)  
+- Upper working  
+2. Middle Class
+- Average middle  
+- Middle class (don’t know average or upper  middle)  
+- Upper middle  
+
 ```{r reclassify 2012}
+# plot the percentage of voting results
 reclassify.var <- c('birth','race','income','education','class')
 plot.12 <- list()
 
@@ -195,26 +292,618 @@ for (i in 1:length(reclassify.var)) {
       ggplot(aes(!!sym(var),percentage)) +
         geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
         scale_fill_viridis(discrete = TRUE) +
-        labs(title = paste("Percentage of Voting by", var, "in 2012")) +
         theme_bw()+
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-  print(plot.12[[i]])
 }
+wrap_plots(plot.12, ncol = 3) + 
+  plot_layout(guides = 'collect')+
+  plot_annotation(title = "Percentage of Voting by Category in 2012",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
 
+# reclassify
 dat.12 <- dat.12 %>% 
   mutate(
-    birth = factor(case_when(
-      birth %in% c('1911-1926', '1927-1942') ~ '1911-1942',
-      birth %in% c('1943-1958', '1959-1974') ~ '1943-1974',
-      birth %in% c('1975-1990', 'after199') ~ 'after1975')),
-    race = factor(case_when(
+    birth.re = factor(case_when(
+      birth %in% c('1911-1926', '1927-1942') ~ 'early',
+      birth %in% c('1943-1958', '1959-1974') ~ 'middle',
+      birth %in% c('1975-1990', 'after1991') ~ 'late'),
+      levels = c('late', 'middle','early')),
+    race.re = factor(case_when(
       race == 'White' ~ 'white',
       race == 'Black' ~ 'black',
       !(race %in% c('White','Black')) ~ 'others'),
-      
-    
-         )
+      levels = c('white', 'black','others')),
+    education.re = factor(case_when(
+      education %in% c('8th-grade','9-12th-grade')  ~ 'basic',
+      education %in% c('high-school','training','no-degree')  ~ 'highschool',
+      education %in% c('bachelor','advanced')  ~ 'bachelor'),
+      levels = c('basic', 'highschool','bachelor')),
+    class.re = factor(case_when(
+      class %in% c('working','upper-working')  ~ 'working',
+      class %in% c('middle','upper-middle')  ~ 'middle'),
+      levels = c('working', 'middle')))%>%
+  select(year, candidate, age,
+         birth,birth.re,gender,
+         race,race.re,religion,
+         income,education,education.re,
+         class,class.re,hispanic,
+         lgbt,gun,trust,party,south)
 
-hihi hongyu
+summary(dat.12)
 ```
+
+```{r reclassify 2016}
+# plot the percentage of voting results
+reclassify.var <- c('birth','race','income','education','class')
+plot.16 <- list()
+
+for (i in 1:length(reclassify.var)) {
+  var = reclassify.var[i]
+  
+  plot.16[[i]] <- dat.16 %>%
+    select(candidate, !!sym(var)) %>% na.omit() %>%
+    group_by(candidate,!!sym(var)) %>%
+    summarize(count.vote = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count.vote/sum(count.vote)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var),percentage)) +
+        geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot.16, ncol = 3) + 
+  plot_layout(guides = 'collect')+
+  plot_annotation(title = "Percentage of Voting by Category in 2016",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
+# reclassify
+dat.16 <- dat.16 %>% 
+  mutate(
+    birth.re = factor(case_when(
+      birth %in% c('1911-1926', '1927-1942') ~ 'early',
+      birth %in% c('1943-1958', '1959-1974') ~ 'middle',
+      birth %in% c('1975-1990', 'after1991') ~ 'late'),
+      levels = c('late', 'middle','early')),
+    race.re = factor(case_when(
+      race == 'White' ~ 'white',
+      race == 'Black' ~ 'black',
+      !(race %in% c('White','Black')) ~ 'others'),
+      levels = c('white', 'black','others')),
+    education.re = factor(case_when(
+      education %in% c('8th-grade','9-12th-grade')  ~ 'basic',
+      education %in% c('high-school','training','no-degree')  ~ 'highschool',
+      education %in% c('bachelor','advanced')  ~ 'bachelor'),
+      levels = c('basic', 'highschool','bachelor')),
+    class.re = factor(case_when(
+      class %in% c('working','upper-working')  ~ 'working',
+      class %in% c('middle','upper-middle')  ~ 'middle'),
+      levels = c('working', 'middle')))%>%
+  select(year, candidate, age,
+         birth,birth.re,gender,
+         race,race.re,religion,
+         income,education,education.re,
+         class,class.re,hispanic,
+         lgbt,gun,trust,party,south)
+
+summary(dat.16)
+```
+## summary  
+```{r summary 12}
+## categorical var.
+# table
+var.12 <- colnames(dat.12%>%select(-year, -candidate, -age))
+table.12<- list()
+
+for (i in 1:length(var.12)){
+  var = var.12[i]
+  
+  table.12[[i]] <- dat.12 %>%
+    group_by(!!sym(var), candidate) %>%
+    summarise(count = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+           variable = var,
+           category = as.character(!!sym(var)),
+           vote = as.character(candidate))%>%
+    ungroup()%>%
+    select(variable, category, vote, count, percentage)
+}
+bind_rows(table.12) %>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for 2012</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
+  collapse_rows(columns = 1:3, valign = "middle")
+
+# plots
+plot.12 <- list()
+
+for (i in 1:length(var.12)) {
+  var = var.12[i]
+  
+  plot.12[[i]] <- dat.12 %>%
+    select(candidate, !!sym(var)) %>% na.omit() %>%
+    group_by(candidate,!!sym(var)) %>%
+    summarize(count.vote = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count.vote/sum(count.vote)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var),percentage)) +
+        geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot.12, ncol = 3) + 
+  plot_layout(guides = 'collect')+
+  plot_annotation(title = "Percentage of Voting by Category in 2012",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
+## continuous var.
+# table
+dat.12 %>%
+  group_by(candidate) %>%
+  summarise(
+    N = n(),
+    Mean = mean(age, na.rm = TRUE),
+    StDev = sd(age, na.rm = TRUE),
+    Min = min(age, na.rm = TRUE),
+    Max = max(age, na.rm = TRUE),
+    .groups = 'drop'  # Avoids retaining the grouping structure in the result
+  ) %>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Continuous Variables (age) for 2012</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")
+# plot
+
+
+```
+
+```{r summary 16}
+# table
+var.16 <- colnames(dat.16%>%select(-year, -candidate))
+table.16<- list()
+
+for (i in 1:length(var.16)){
+  var = var.16[i]
+  
+  table.16[[i]] <- dat.16 %>%
+    group_by(!!sym(var), candidate) %>%
+    summarise(count = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+           variable = var,
+           category = as.character(!!sym(var)),
+           vote = as.character(candidate))%>%
+    ungroup()%>%
+    select(variable, category, vote, count, percentage)
+}
+bind_rows(table.16) %>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for 2016</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
+  collapse_rows(columns = 1:3, valign = "middle")
+
+# plots
+plot.16 <- list()
+
+for (i in 1:length(var.16)) {
+  var = var.16[i]
+  
+  plot.16[[i]] <- dat.16 %>%
+    select(candidate, !!sym(var)) %>% na.omit() %>%
+    group_by(candidate,!!sym(var)) %>%
+    summarize(count.vote = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count.vote/sum(count.vote)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var),percentage)) +
+        geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot.16, ncol = 3) + 
+  plot_layout(guides = 'collect')+
+  plot_annotation(title = "Percentage of Voting by Category in 2016",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
+```
+
+
+
+
+# Model Building (p-value = 0.05)
+
+## Variance Selection
+
+criteria:
+1. Significance
+2. Larger Log Likelihood
+
+```{r initial model 12}
+# choose birth vs. birth.re vs. age
+mod12.1.1 <- glm(candidate ~ .-year-birth-age,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod12.1.2 <- glm(candidate ~ .-year-birth.re-age,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod12.1.3 <- glm(candidate ~ .-year-birth-birth.re,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod12.1.1, mod12.1.2, mod12.1.3, type = "text")
+#birth.re has the largest LL -> keep birth.re
+dat.12 <- dat.12 %>%
+  select(-birth, -age)
+
+# choose race v.s. race.re
+mod12.2.1 <- glm(candidate ~ .-year-race,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod12.2.2 <- glm(candidate ~ .-year-race.re,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod12.2.1, mod12.2.2, type = "text")
+#despite race has larger LL (-1.089 > -1.093) 
+#all categories are significant only in race.re -> keep race.re
+dat.12 <- dat.12 %>%
+  select(-race)
+
+# choose education v.s. education.re
+mod12.3.1 <- glm(candidate ~ .-year-education,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod12.3.2 <- glm(candidate ~ .-year-education.re,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod12.3.1, mod12.3.2, type = "text")
+#education is not significant -> keep education.re
+dat.12 <- dat.12 %>%
+  select(-education)
+
+# choose class v.s. class.re
+mod12.4.1 <- glm(candidate ~ .-year-class,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod12.4.2 <- glm(candidate ~ .-year-class.re,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod12.4.1, mod12.4.2, type = "text")
+#both are not significant -> delete both
+dat.12 <- dat.12 %>%
+  select(-class, -class.re)
+
+#rename the columns
+dat.12 <- dat.12 %>%
+  rename(birth = birth.re,
+         race = race.re,
+         education = education.re)
+```
+
+```{r initial model 16}
+# choose birth vs. birth.re vs. age
+mod16.1.1 <- glm(candidate ~ .-year-birth-age,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod16.1.2 <- glm(candidate ~ .-year-birth.re-age,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod16.1.3 <- glm(candidate ~ .-year-birth-birth.re,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod16.1.1, mod16.1.2, mod16.1.3, type = "text")
+#only birth.re has significant coef.-> keep birth.re
+dat.16 <- dat.16 %>%
+  select(-birth, -age)
+
+# choose race v.s. race.re
+mod16.2.1 <- glm(candidate ~ .-year-race,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod16.2.2 <- glm(candidate ~ .-year-race.re,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod16.2.1, mod16.2.2, type = "text")
+#despite race has larger LL (-1.089 > -1.093) 
+#all categories are significant only in race.re -> keep race.re
+dat.16 <- dat.16 %>%
+  select(-race)
+
+# choose education v.s. education.re
+mod16.3.1 <- glm(candidate ~ .-year-education,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod16.3.2 <- glm(candidate ~ .-year-education.re,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod16.3.1, mod16.3.2, type = "text")
+#education is not significant -> keep education.re
+dat.16 <- dat.16 %>%
+  select(-education)
+
+# choose class v.s. class.re
+mod16.4.1 <- glm(candidate ~ .-year-class,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+mod16.4.2 <- glm(candidate ~ .-year-class.re,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+stargazer(mod16.4.1, mod16.4.2, type = "text")
+# despite class has larger LL (-694.217 > -694.628)
+# compared to working, upper-working's coef. is not significant
+# coef.s of middle and upper-middle are similar (-0.535, -0.660) -> keep class.re
+dat.16 <- dat.16 %>%
+  select(-class)
+
+#rename the column
+dat.16 <- dat.16 %>%
+  rename(birth = birth.re,
+         race = race.re,
+         education = education.re,
+         class = class.re)
+```
+
+
+## model for 2012
+```{r 2012 model}
+### delete all the insignificant var. 
+# delete insignificant var. of one category first
+# delete the var of several categories with highest p-value 
+# after removal, run lrtest
+mod12.1 <- glm(candidate ~ .-year,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+vif(mod12.1) #all below 2
+summary(mod12.1)#-> coef. of gender/income/south/education is not significant
+
+# gender
+mod12.2 <- glm(candidate ~ .-year-gender,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.2, mod12.1)# not significant -> remove
+summary(mod12.2)
+dat.12 <- dat.12 %>%
+  select(-gender)
+
+# income: highest p-value = 0.9001 income17-33rd 
+mod12.3 <- glm(candidate ~ .-year-income,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.3, mod12.2)# not significant -> remove
+summary(mod12.3)
+dat.12 <- dat.12 %>%
+  select(-income)
+
+# gun: highest p-value = 0.6114 gunnot-too
+mod12.4 <- glm(candidate ~ .-year-gun,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.4, mod12.3)# not significant -> remove
+summary(mod12.4)
+dat.12 <- dat.12 %>%
+  select(-gun)
+
+# south: highest p-value = 0.1037 southnon-south
+mod12.5 <- glm(candidate ~ .-year-south,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.5, mod12.4)# not significant -> remove
+summary(mod12.5)
+dat.12 <- dat.12 %>%
+  select(-south)
+
+### use lrtest to tell if every variable significantly improve the model
+# religion
+mod12.6 <- glm(candidate ~ .-year-religion,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.6, mod12.5)# significant -> keep
+
+# hispanic
+mod12.7 <- glm(candidate ~ .-year-hispanic,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.7, mod12.5)# significant -> keep
+
+
+# lgbt
+mod12.8 <- glm(candidate ~ .-year-lgbt,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.8, mod12.5)# significant -> keep
+
+
+# trust
+mod12.9 <- glm(candidate ~ .-year-trust,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.9, mod12.5)# significant -> keep
+
+# party
+mod12.10 <- glm(candidate ~ .-year-party,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.10, mod12.5)# significant -> keep
+
+# birth
+mod12.11 <- glm(candidate ~ .-year-birth,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.11, mod12.5)# significant -> keep
+
+# race
+mod12.12 <- glm(candidate ~ .-year-race,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.12, mod12.5)# significant -> keep
+
+# education
+mod12.13 <- glm(candidate ~ .-year-education,
+                 data = dat.12,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod12.13, mod12.5)# significant -> keep
+
+#final model
+summary(mod12.5)
+```
+
+## model for 2016
+
+```{r 2016 model}
+### delete all the insignificant var. 
+# delete insignificant var. of one category first
+# delete the var of several categories with highest p-value 
+# after removal, run lrtest
+mod16.1 <- glm(candidate ~ .-year,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+vif(mod16.1) #all below 2
+summary(mod16.1)#-> coef. of gender/income/gun/birth is not significant
+
+# gun highest p-value = 0.98 igunnot-too
+mod16.2 <- glm(candidate ~ .-year-gun,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.2, mod16.1)# not significant -> remove
+summary(mod16.2)
+dat.16 <- dat.16 %>%
+  select(-gun)
+
+# gender: p-value = 0.711 
+mod16.3 <- glm(candidate ~ .-year-gender,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.3, mod16.2)# not significant -> remove
+summary(mod16.3)
+dat.16 <- dat.16 %>%
+  select(-gender)
+
+# income: highest p-value = 0.5257 income96-100th
+mod16.4 <- glm(candidate ~ .-year-income,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.4, mod16.3)# not significant -> remove
+summary(mod16.4)
+dat.16 <- dat.16 %>%
+  select(-income)
+
+# birth: highest p-value = 0.2847 birthearly 
+mod16.5 <- glm(candidate ~ .-year-birth,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.5, mod16.4)# not significant -> remove
+summary(mod16.5)
+dat.16 <- dat.16 %>%
+  select(-birth)
+
+### use lrtest to tell if every variable significantly improve the model
+# religion
+mod16.6 <- glm(candidate ~ .-year-religion,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.6, mod16.5)# significant -> keep
+
+# hispanic
+mod16.7 <- glm(candidate ~ .-year-hispanic,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.7, mod16.5)# significant -> keep
+
+
+# lgbt
+mod16.8 <- glm(candidate ~ .-year-lgbt,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.8, mod16.5)# significant -> keep
+
+
+# trust
+mod16.9 <- glm(candidate ~ .-year-trust,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.9, mod16.5)# significant -> keep
+
+# party
+mod16.10 <- glm(candidate ~ .-year-party,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.10, mod16.5)# significant -> keep
+
+# south
+mod16.11 <- glm(candidate ~ .-year-south,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.11, mod16.5)# significant -> keep
+
+# race
+mod16.12 <- glm(candidate ~ .-year-race,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.12, mod16.5)# significant -> keep
+
+# education
+mod16.13 <- glm(candidate ~ .-year-education,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.13, mod16.5)# significant -> keep
+
+# class
+mod16.14 <- glm(candidate ~ .-year-class,
+                 data = dat.16,
+                 na.action = na.exclude,
+                 family = binomial("logit"))
+lrtest(mod16.14, mod16.5)# significant -> keep
+
+#final model
+summary(mod16.5)
+```
+
+## final model
+```{r final model}
+stargazer(mod12.5, mod16.5, type = 'text', star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+

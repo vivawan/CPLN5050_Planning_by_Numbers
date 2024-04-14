@@ -255,8 +255,8 @@ table(dat$age_cat,dat$mode_cat)
 dat <- dat %>%
   mutate(age_cat_re = factor(case_when(
     age_cat %in% c('0-5', '6-12', '13-15', '16-17', '18-24') ~ 'under 24',
-    age_cat %in% c('25-34', '35-44', '45-54', '55-64', '65-74') ~ '25-74',
-    age_cat %in% c('75-85', '86+') ~ 'above 75')))
+    age_cat %in% c('25-34', '35-44', '45-54', '55-64') ~ '25-64',
+    age_cat %in% c('65-74', '75-85', '86+') ~ 'above 65')))
 
 dat %>%
   select(mode_cat, age_cat_re) %>%
@@ -298,7 +298,8 @@ dat <- dat %>%
   mutate(race_cat_re = factor(case_when(
     race_cat %in% c('white') ~ 'white',
     race_cat %in% c('american indian', 'asian', 'black', 'hispanic', 'multi-race',
-                    'native hawaiian', 'others') ~ 'non-white')))
+                    'native hawaiian', 'others') ~ 'non-white'),
+    levels = c('white', 'non-white')))
 
 dat %>%
   select(mode_cat, race_cat_re) %>%
@@ -385,7 +386,8 @@ dat <- dat %>%
     income_cat %in% c('$50,000 to $74,999', '$75,000 to $99,999', '$100,000 to $149,999')
     ~ 'middle income',
     income_cat %in% c('$150,000 to $199,999', '$200,000 to $249,999', '$250,000 or more')
-    ~ 'high income')))
+    ~ 'high income'),
+    levels = c('low income', 'middle income', 'high income')))
 
 dat %>%
   select(mode_cat, income_cat_re) %>%
@@ -467,8 +469,9 @@ table(dat$bike_num_cat,dat$mode_cat)
 ### reclassification
 dat <- dat %>%
   mutate(bike_num_cat_re = factor(case_when(
-    bike_num_cat %in% c('0') ~ 'no bikes',
-    bike_num_cat %in% c('1', '2', '3', '4', '5', '6', '7', '8', '9', '12') ~ 'with bikes')))
+    bike_num_cat %in% c('0', '1') ~ 'zero or one bike',
+    bike_num_cat %in% c('2', '3', '4') ~ 'two to four bikes',
+    bike_num_cat %in% c('5', '6', '7', '8', '9', '12') ~ 'five bikes or more')))
 
 dat %>%
   select(mode_cat, bike_num_cat_re) %>%
@@ -484,6 +487,10 @@ dat %>%
       labs(title = "Percentage of Mode Choice by Number of Bicycles in Household (Reclassification)") +
       theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+## transit_sub_cat
+dat <- dat %>%
+  mutate(transit_sub_cat = factor(transit_sub_cat, levels = c('subsidize', 'pay')))
 
 table(dat$bike_num_cat_re,dat$mode_cat)
 ```
@@ -595,7 +602,6 @@ wrap_plots(plot_cat, ncol = 3) +
                   theme = theme(plot.title = element_text(hjust = 0.5)))
 ```
 
-
 ### Final model
 
 ```{r final_model}
@@ -633,6 +639,57 @@ summary(mod11)
 lrtest(mod11, mod10)
 ```
 
+## Model results
+
+### Model prediction
+
+```{r}
+#how changing variables affect mode choice####
+#a few options to think about
+#what if we increase cost of driving by xx%? how would that affect predicted average probabilities?
+#what if we reduce travel time on transit by xx%? how would that affect predicted average probabilities?
+#what if we increase the income of those who are currently at the bottom of the income brackets by xx%?
+
+#increasing driving cost by 50%
+dat.1 <- dat
+dat.1$cost.car <- dat.1$cost.car * 1.5
+dat.1.logit <- mlogit.data(dat.1, shape="wide", 
+                           choice="mode_cat", varying=c(22:27))  
+
+#average predicted probability for using each mode before and after intervention
+apply(predict(mod.1, type = "response", newdata = dat.logit), 2, mean)
+apply(predict(mod.1, type = "response", newdata = dat.1.logit), 2, mean)
+```
+
+```{r prediction}
+# predicting
+mode.prob <- data.frame(predict(mod11, type = "response", newdata = dat.logit))
+dat <- cbind.data.frame(dat, mode.prob)
+
+dat$pred_mode <- 0
+
+# use actual share in observed as thresholds
+table(dat$mode_cat)/length(dat$mode_cat)
+
+for (i in 1:length(dat$PERSON_ID)) {
+  if (dat$car[i] > 0.659631) {
+    dat$pred_mode[i] = "car"
+  } else if (dat$transit[i] > 0.284960) {
+    dat$pred_mode[i] = "transit"
+  } else if (dat$bike[i] > 0.055409) {
+    dat$pred_mode[i] = "bike"
+  }
+}
+
+table(dat$pred_mode)/length(dat$pred_mode)
+
+#calculate model fit statistics####
+#count R squared
+#misclassification error
+#correct rate for car
+#correct rate for transit
+#correct rate for bike
+```
 
 
 

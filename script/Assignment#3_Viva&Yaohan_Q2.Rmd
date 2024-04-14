@@ -101,7 +101,7 @@ per_work <- per %>%
                       `10` = '65-74',
                       `11` = '75-85',
                       `12` = '86+'))) %>%
-  filter(RACE != 98 & RACE != 99) %>%
+  filter(RACE != 98 & RACE != 99 & RACE != 988) %>%
   mutate(race_cat = as.factor(recode(RACE, # recode race
                       `1` = 'white',
                       `2` = 'black',
@@ -110,8 +110,7 @@ per_work <- per %>%
                       `5` = 'asian',
                       `6` = 'native hawaiian',
                       `97` = 'others',
-                      `100` = 'multi-race',
-                      `988` = 'pilot'))) %>%
+                      `100` = 'multi-race'))) %>%
   filter(EDUCA < 98) %>%
   mutate(edu_cat = as.factor(recode(EDUCA, # recode education
                       `1` = 'less than high school',
@@ -159,7 +158,7 @@ hh_work <- hh %>%
          car_share_dum = as.factor(recode(car_share,
                             `1` = 'yes',
                             `2` = 'no')),
-         income = as.factor(recode(income,
+         income_cat = as.factor(recode(income,
                             `1` = '$0 to $9,999',
                             `2` = '$10,000 to $24,999',
                             `3` = '$25,000 to $34,999',
@@ -169,7 +168,10 @@ hh_work <- hh %>%
                             `7` = '$100,000 to $149,999',
                             `8` = '$150,000 to $199,999',
                             `9` = '$200,000 to $249,999',
-                            `10` = '$250,000 or more')))
+                            `10` = '$250,000 or more')),
+         veh_num_cat = as.factor(veh_num),
+         bike_num_cat = as.factor(bike_num)) %>%
+  select(-income, -toll_accnt, -car_share)
 
 # combine three datasets
 dat <- trip_work %>%
@@ -205,5 +207,439 @@ dat.bike$time.bike <- dat.bike$travel_time
 dat.bike$time.car <- 60*(dat.bike$travel_dist/ave.speed$ave_speed[2])
 dat.bike$time.transit <- 60*(dat.bike$travel_dist/ave.speed$ave_speed[3]) + 10
 
+# make a subset of car to balance the mode split
+set.seed(seed = 1)
+rows <- sample(1:nrow(dat.car), 500)
+dat.car <- dat.car[rows,]
+
+dat <- rbind.data.frame(dat.car, dat.transit, dat.bike)
+
+# calculate travel costs for alternative modes
+## $0.6/mile for driving
+dat$cost.car <- dat$travel_dist * 0.6
+
+## multiply 0.5 for non-monetary costs, add $2 for ticket
+dat$cost.transit <- dat$travel_dist * 0.5 + 2
+
+## add $3 for non-monetary cost and wear and tear
+dat$cost.bike <- dat$travel_dist + 3
+
+table(dat$mode_cat)
 ```
+
+## Reclassify variables
+
+```{r reclassification_2}
+dat <- dat %>%
+  filter_all(all_vars(!is.na(.))) # remove all NAs
+
+## age categories
+dat %>%
+  select(mode_cat, age_cat) %>%
+  group_by(age_cat, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(age_cat) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(age_cat, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Age Categories") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$age_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(age_cat_re = factor(case_when(
+    age_cat %in% c('0-5', '6-12', '13-15', '16-17', '18-24') ~ 'under 24',
+    age_cat %in% c('25-34', '35-44', '45-54', '55-64', '65-74') ~ '25-74',
+    age_cat %in% c('75-85', '86+') ~ 'above 75')))
+
+dat %>%
+  select(mode_cat, age_cat_re) %>%
+  group_by(age_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(age_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(age_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Age Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$age_cat_re,dat$mode_cat)
+
+## race categories
+dat %>%
+  select(mode_cat, race_cat) %>%
+  group_by(race_cat, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(race_cat) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(race_cat, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Race Categories") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$race_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(race_cat_re = factor(case_when(
+    race_cat %in% c('white') ~ 'white',
+    race_cat %in% c('american indian', 'asian', 'black', 'hispanic', 'multi-race',
+                    'native hawaiian', 'others') ~ 'non-white')))
+
+dat %>%
+  select(mode_cat, race_cat_re) %>%
+  group_by(race_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(race_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(race_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Race Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$race_cat_re,dat$mode_cat)
+
+## education categories
+dat %>%
+  select(mode_cat, edu_cat) %>%
+  group_by(edu_cat, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(edu_cat) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(edu_cat, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Education Categories") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$edu_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(edu_cat_re = factor(case_when(
+    edu_cat %in% c('bachelor', 'graduate') ~ 'bachelor or higher',
+    edu_cat %in% c('college no degree', 'high school', 'less than high school',
+                   'others', 'technical school') ~ 'without bachelor')))
+
+dat %>%
+  select(mode_cat, edu_cat_re) %>%
+  group_by(edu_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(edu_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(edu_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Education Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$edu_cat_re,dat$mode_cat)
+
+## income categories
+dat %>%
+  select(mode_cat, income_cat) %>%
+  group_by(income_cat, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(income_cat) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(income_cat, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Income Categories") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$income_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(income_cat_re = factor(case_when(
+    income_cat %in% c('$0 to $9,999', '$10,000 to $24,999', '$25,000 to $34,999',
+                      '$35,000 to $49,999') ~ 'low income',
+    income_cat %in% c('$50,000 to $74,999', '$75,000 to $99,999', '$100,000 to $149,999')
+    ~ 'middle income',
+    income_cat %in% c('$150,000 to $199,999', '$200,000 to $249,999', '$250,000 or more')
+    ~ 'high income')))
+
+dat %>%
+  select(mode_cat, income_cat_re) %>%
+  group_by(income_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(income_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(income_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Income Categories (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$income_cat_re,dat$mode_cat)
+
+## total household vehicles in working condition
+dat %>%
+  select(mode_cat, veh_num_cat) %>%
+  group_by(veh_num_cat, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(veh_num_cat) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(veh_num_cat, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Total Household Vehicles in Working Condition") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$veh_num_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(veh_num_cat_re = factor(case_when(
+    veh_num_cat %in% c('0') ~ 'no vehicles',
+    veh_num_cat %in% c('1') ~ 'one vehicle',
+    veh_num_cat %in% c('2', '3', '4', '5') ~ 'two vehicles or more')))
+
+dat %>%
+  select(mode_cat, veh_num_cat_re) %>%
+  group_by(veh_num_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(veh_num_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(veh_num_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Total Household Vehicles in Working Condition (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$veh_num_cat_re,dat$mode_cat)
+
+## number of bicycles in household
+dat %>%
+  select(mode_cat, bike_num_cat) %>%
+  group_by(bike_num_cat, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(bike_num_cat) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(bike_num_cat, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Number of Bicycles in Household") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$bike_num_cat,dat$mode_cat)
+
+### reclassification
+dat <- dat %>%
+  mutate(bike_num_cat_re = factor(case_when(
+    bike_num_cat %in% c('0') ~ 'no bikes',
+    bike_num_cat %in% c('1', '2', '3', '4', '5', '6', '7', '8', '9', '12') ~ 'with bikes')))
+
+dat %>%
+  select(mode_cat, bike_num_cat_re) %>%
+  group_by(bike_num_cat_re, mode_cat) %>%
+  summarize(count.mode = n()) %>%
+  ungroup() %>%
+  group_by(bike_num_cat_re) %>%
+  mutate(per = round(count.mode/sum(count.mode)*100, digit= 2)) %>%
+  ungroup() %>%
+    ggplot(aes(bike_num_cat_re, per)) +
+      geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+      scale_fill_viridis(discrete = TRUE) +
+      labs(title = "Percentage of Mode Choice by Number of Bicycles in Household (Reclassification)") +
+      theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+table(dat$bike_num_cat_re,dat$mode_cat)
+```
+
+## Build multinomial logistic model
+
+### Initial variable selection
+
+```{r multinomial_regression}
+# shape data into correct format
+dat.logit <- mlogit.data(dat, shape="wide", 
+                      choice="mode_cat", 
+                      varying=c(20:25))
+
+names(dat.logit)
+
+## age_cat & age_cat_re —> none
+mod1.2 <- mlogit (mode_cat ~ cost + time | age_cat_re, data = dat.logit, reflevel = "car")
+summary(mod1.2)
+
+## race_cat & race_cat_re —> race_cat_re
+mod2.2 <- mlogit (mode_cat ~ cost + time | race_cat_re, data = dat.logit, reflevel = "car")
+summary(mod2.2)
+
+## edu_cat & edu_cat_re —> edu_cat_re
+mod3.1 <- mlogit (mode_cat ~ cost + time | edu_cat, data = dat.logit, reflevel = "car")
+mod3.2 <- mlogit (mode_cat ~ cost + time | edu_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod3.1, mod3.2, type = "text")
+
+## veh_num & veh_num_cat & veh_num_cat_re —> veh_num
+mod4.1 <- mlogit (mode_cat ~ cost + time | veh_num, data = dat.logit, reflevel = "car")
+mod4.3 <- mlogit (mode_cat ~ cost + time | veh_num_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod4.1, mod4.3, type = "text")
+
+## bike_num & bike_num_cat & bike_num_cat_re —> bike_num
+mod5.1 <- mlogit (mode_cat ~ cost + time | bike_num, data = dat.logit, reflevel = "car")
+mod5.3 <- mlogit (mode_cat ~ cost + time | bike_num_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod5.1, mod5.3, type = "text")
+
+## income_cat & income_cat_re —> income_cat_re
+mod6.1 <- mlogit (mode_cat ~ cost + time | income_cat, data = dat.logit, reflevel = "car")
+mod6.2 <- mlogit (mode_cat ~ cost + time | income_cat_re, data = dat.logit, reflevel = "car")
+stargazer(mod6.1, mod6.2, type = "text")
+```
+
+### Summary table
+
+```{r summary}
+# continuous variables
+dat_summary <- as.data.frame(dat.logit)[as.data.frame(dat.logit)$mode_cat, ]
+
+dat_summary <- dat_summary %>%
+  summarise(across(c(cost, time, veh_num, bike_num),
+                   list(maximum = ~ max(., na.rm = TRUE),
+                        minimum = ~ min(., na.rm = TRUE),
+                        mean = ~ mean(., na.rm = TRUE),
+                        standard_deviation = ~ sd(., na.rm = TRUE)),
+                   .names = "{.col}:{.fn}")) %>%
+  pivot_longer(cols = everything(), names_to = c("variables", "statistic"),
+               names_sep = ":", values_to = "value") %>%
+  mutate(value = round(value, digits = 2)) %>%
+  pivot_wider(names_from = statistic, values_from = value)
+
+# categorical variables
+## table
+var_cat <- c('gender_cat', 'race_cat_re', 'edu_cat_re', 'lic_dum', 'park_sub_cat',
+             'transit_sub_cat', 'toll_accnt_dum', 'car_share_dum', 'income_cat_re')
+table_cat <- list()
+
+for (i in 1:length(var_cat)){
+  table_cat[[i]] <- dat %>%
+    group_by(!!sym(var_cat[[i]]), mode_cat) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(!!sym(var_cat[[i]])) %>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+           variable = var_cat[[i]],
+           category = as.character(!!sym(var_cat[[i]])),
+           choice = as.character(mode_cat)) %>%
+    ungroup() %>%
+    select(variable, category, choice, count, percentage)}
+
+bind_rows(table_cat) %>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for Mode Choice</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
+  column_spec(1:5, extra_css = "text-align: left;") %>%
+  collapse_rows(columns = 1:2, valign = "middle")
+
+## plot
+plot_cat <- list()
+
+for (i in 1:length(var_cat)) {
+  plot_cat[[i]] <- dat %>%
+    select(mode_cat, !!sym(var_cat[[i]])) %>% na.omit() %>%
+    group_by(mode_cat, !!sym(var_cat[[i]])) %>%
+    summarize(count.mode = n(), .groups = 'drop') %>%
+    group_by(!!sym(var_cat[[i]]))%>%
+    mutate(percentage = round(count.mode/sum(count.mode)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var_cat[[i]]),percentage)) +
+        geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot_cat, ncol = 3) + 
+  plot_layout(guides = 'collect') +
+  plot_annotation(title = "Percentage of Mode Choice by Category",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+```
+
+
+### Final model
+
+```{r final_model}
+mod7 <- mlogit (mode_cat ~ cost + time | gender_cat + race_cat_re + edu_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num + toll_accnt_dum
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod7)
+
+## remove edu_cat_re
+mod8 <- mlogit (mode_cat ~ cost + time | gender_cat + race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num + toll_accnt_dum
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod8)
+lrtest(mod8, mod7)
+
+## remove toll_accnt_dum
+mod9 <- mlogit (mode_cat ~ cost + time | gender_cat + race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod9)
+lrtest(mod9, mod8)
+
+## remove gender_cat
+mod10 <- mlogit (mode_cat ~ cost + time | race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num
+                 + car_share_dum + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod10)
+lrtest(mod10, mod9)
+
+## remove car_share_dum
+mod11 <- mlogit (mode_cat ~ cost + time | race_cat_re + lic_dum
+                 + park_sub_cat + transit_sub_cat + veh_num + bike_num
+                 + income_cat_re, data = dat.logit, reflevel = "car")
+summary(mod11)
+lrtest(mod11, mod10)
+```
+
+
+
+
+
+
+
+
+
+
 

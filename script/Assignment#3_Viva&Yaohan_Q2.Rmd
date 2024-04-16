@@ -538,7 +538,7 @@ stargazer(mod6.1, mod6.2, type = "text")
 
 ### Summary table
 
-```{r summary}
+```{r summary, fig.height=10, fig.width=16}
 # continuous variables
 dat_summary <- as.data.frame(dat.logit)[as.data.frame(dat.logit)$mode_cat, ]
 
@@ -556,8 +556,7 @@ dat_summary <- dat_summary %>%
 
 # categorical variables
 ## table
-var_cat <- c('gender_cat', 'race_cat_re', 'edu_cat_re', 'lic_dum', 'park_sub_cat',
-             'transit_sub_cat', 'toll_accnt_dum', 'car_share_dum', 'income_cat_re')
+var_cat <- c('age_cat', 'race_cat', 'edu_cat','veh_num_cat', 'bike_num_cat','income_cat')
 table_cat <- list()
 
 for (i in 1:length(var_cat)){
@@ -598,7 +597,53 @@ for (i in 1:length(var_cat)) {
 }
 wrap_plots(plot_cat, ncol = 3) + 
   plot_layout(guides = 'collect') +
-  plot_annotation(title = "Percentage of Mode Choice by Category",
+  plot_annotation(title = "Percentage Distribution of Mode Choices by Categorical Variables",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
+# reclassified categorical variables
+## table
+var_cat_re <- c('age_cat_re', 'race_cat_re', 'edu_cat_re','veh_num_cat_re', 'bike_num_cat_re','income_cat_re')
+table_cat <- list()
+
+for (i in 1:length(var_cat_re)){
+  table_cat[[i]] <- dat %>%
+    group_by(!!sym(var_cat[[i]]), mode_cat) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    group_by(!!sym(var_cat[[i]])) %>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+           variable = var_cat[[i]],
+           category = as.character(!!sym(var_cat[[i]])),
+           choice = as.character(mode_cat)) %>%
+    ungroup() %>%
+    select(variable, category, choice, count, percentage)}
+
+bind_rows(table_cat) %>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for Mode Choice</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
+  column_spec(1:5, extra_css = "text-align: left;") %>%
+  collapse_rows(columns = 1:2, valign = "middle")
+
+## plot
+plot_cat <- list()
+
+for (i in 1:length(var_cat_re)) {
+  plot_cat[[i]] <- dat %>%
+    select(mode_cat, !!sym(var_cat_re[[i]])) %>% na.omit() %>%
+    group_by(mode_cat, !!sym(var_cat_re[[i]])) %>%
+    summarize(count.mode = n(), .groups = 'drop') %>%
+    group_by(!!sym(var_cat_re[[i]]))%>%
+    mutate(percentage = round(count.mode/sum(count.mode)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var_cat_re[[i]]),percentage)) +
+        geom_bar(aes(fill= mode_cat), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot_cat, ncol = 3) + 
+  plot_layout(guides = 'collect') +
+  plot_annotation(title = "Percentage Distribution of Mode Choices by Reclassified Categorical Variables",
                   theme = theme(plot.title = element_text(hjust = 0.5)))
 ```
 

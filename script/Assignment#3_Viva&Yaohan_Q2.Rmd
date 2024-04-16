@@ -553,30 +553,25 @@ dat_summary <- dat_summary %>%
                names_sep = ":", values_to = "value") %>%
   mutate(value = round(value, digits = 2)) %>%
   pivot_wider(names_from = statistic, values_from = value)
+write.csv(dat_summary, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Continuous.csv")
 
 # categorical variables
 ## table
-var_cat <- c('age_cat', 'race_cat', 'edu_cat','veh_num_cat', 'bike_num_cat','income_cat')
+var_cat <- c('gender_cat', 'age_cat', 'race_cat', 'edu_cat','lic_dum','park_sub_cat','transit_sub_cat','toll_accnt_dum','car_share_dum','veh_num_cat', 'bike_num_cat','income_cat')
 table_cat <- list()
 
 for (i in 1:length(var_cat)){
   table_cat[[i]] <- dat %>%
-    group_by(!!sym(var_cat[[i]]), mode_cat) %>%
-    summarise(count = n()) %>%
-    ungroup() %>%
     group_by(!!sym(var_cat[[i]])) %>%
-    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+    summarise(count = n()) %>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 2),
            variable = var_cat[[i]],
-           category = as.character(!!sym(var_cat[[i]])),
-           choice = as.character(mode_cat)) %>%
+           category = as.character(!!sym(var_cat[[i]]))) %>%
     ungroup() %>%
-    select(variable, category, choice, count, percentage)}
+    select(variable, category, count, percentage)}
 
-bind_rows(table_cat) %>%
-  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for Mode Choice</span>") %>%
-  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
-  column_spec(1:5, extra_css = "text-align: left;") %>%
-  collapse_rows(columns = 1:2, valign = "middle")
+cat_one <- bind_rows(table_cat)
+write.csv(cat_one, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Continuous_1.csv")
 
 ## plot
 plot_cat <- list()
@@ -607,22 +602,16 @@ table_cat <- list()
 
 for (i in 1:length(var_cat_re)){
   table_cat[[i]] <- dat %>%
-    group_by(!!sym(var_cat[[i]]), mode_cat) %>%
+    group_by(!!sym(var_cat_re[[i]])) %>%
     summarise(count = n()) %>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 2),
+           variable = var_cat_re[[i]],
+           category = as.character(!!sym(var_cat_re[[i]]))) %>%
     ungroup() %>%
-    group_by(!!sym(var_cat[[i]])) %>%
-    mutate(percentage = round(count/sum(count) * 100, digits = 0),
-           variable = var_cat[[i]],
-           category = as.character(!!sym(var_cat[[i]])),
-           choice = as.character(mode_cat)) %>%
-    ungroup() %>%
-    select(variable, category, choice, count, percentage)}
+    select(variable, category, count, percentage)}
 
-bind_rows(table_cat) %>%
-  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for Mode Choice</span>") %>%
-  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
-  column_spec(1:5, extra_css = "text-align: left;") %>%
-  collapse_rows(columns = 1:2, valign = "middle")
+cat_two <- bind_rows(table_cat)
+write.csv(cat_two, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Continuous_2.csv")
 
 ## plot
 plot_cat <- list()

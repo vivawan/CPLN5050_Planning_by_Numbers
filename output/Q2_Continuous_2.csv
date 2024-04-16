@@ -1,0 +1,17 @@
+"","variable","category","count","percentage"
+"1","age_cat_re","25-64",641,84.56
+"2","age_cat_re","above 65",59,7.78
+"3","age_cat_re","under 24",58,7.65
+"4","race_cat_re","white",679,89.58
+"5","race_cat_re","non-white",79,10.42
+"6","edu_cat_re","bachelor or higher",493,65.04
+"7","edu_cat_re","without bachelor",265,34.96
+"8","veh_num_cat_re","no vehicles",77,10.16
+"9","veh_num_cat_re","one vehicle",209,27.57
+"10","veh_num_cat_re","two vehicles or more",472,62.27
+"11","bike_num_cat_re","five bikes or more",34,4.49
+"12","bike_num_cat_re","two to four bikes",326,43.01
+"13","bike_num_cat_re","zero or one bike",398,52.51
+"14","income_cat_re","low income",121,15.96
+"15","income_cat_re","middle income",485,63.98
+"16","income_cat_re","high income",152,20.05

@@ -10,19 +10,19 @@
 "9","age_cat","65-74",50,6.6
 "10","age_cat","75-85",8,1.06
 "11","age_cat","86+",1,0.13
-"12","race_cat","asian",13,1.72
+"12","race_cat","white",679,89.58
 "13","race_cat","black",44,5.8
 "14","race_cat","hispanic",10,1.32
-"15","race_cat","multi-race",7,0.92
-"16","race_cat","others",5,0.66
-"17","race_cat","white",679,89.58
-"18","edu_cat","bachelor",231,30.47
-"19","edu_cat","college no degree",81,10.69
-"20","edu_cat","graduate",262,34.56
-"21","edu_cat","high school",117,15.44
-"22","edu_cat","less than high school",9,1.19
-"23","edu_cat","others",3,0.4
-"24","edu_cat","technical school",55,7.26
+"15","race_cat","asian",13,1.72
+"16","race_cat","multi-race",7,0.92
+"17","race_cat","others",5,0.66
+"18","edu_cat","less than high school",9,1.19
+"19","edu_cat","high school",117,15.44
+"20","edu_cat","college no degree",81,10.69
+"21","edu_cat","technical school",55,7.26
+"22","edu_cat","bachelor",231,30.47
+"23","edu_cat","graduate",262,34.56
+"24","edu_cat","others",3,0.4
 "25","lic_dum","no",42,5.54
 "26","lic_dum","yes",716,94.46
 "27","park_sub_cat","free",494,65.17
@@ -53,11 +53,11 @@
 "52","bike_num_cat","12",1,0.13
 "53","income_cat","$0 to $9,999",3,0.4
 "54","income_cat","$10,000 to $24,999",31,4.09
-"55","income_cat","$100,000 to $149,999",205,27.04
-"56","income_cat","$150,000 to $199,999",84,11.08
-"57","income_cat","$200,000 to $249,999",39,5.15
-"58","income_cat","$25,000 to $34,999",24,3.17
-"59","income_cat","$250,000 or more",29,3.83
-"60","income_cat","$35,000 to $49,999",63,8.31
-"61","income_cat","$50,000 to $74,999",132,17.41
-"62","income_cat","$75,000 to $99,999",148,19.53
+"55","income_cat","$25,000 to $34,999",24,3.17
+"56","income_cat","$35,000 to $49,999",63,8.31
+"57","income_cat","$50,000 to $74,999",132,17.41
+"58","income_cat","$75,000 to $99,999",148,19.53
+"59","income_cat","$100,000 to $149,999",205,27.04
+"60","income_cat","$150,000 to $199,999",84,11.08
+"61","income_cat","$200,000 to $249,999",39,5.15
+"62","income_cat","$250,000 or more",29,3.83

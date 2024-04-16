@@ -111,6 +111,8 @@ per_work <- per %>%
                       `6` = 'native hawaiian',
                       `97` = 'others',
                       `100` = 'multi-race'))) %>%
+   mutate(race_cat = factor(race_cat,
+    levels = c('white', 'black', 'hispanic','american indian','asian','native hawaiian','multi-race','others'))) %>%
   filter(EDUCA < 98) %>%
   mutate(edu_cat = as.factor(recode(EDUCA, # recode education
                       `1` = 'less than high school',
@@ -120,6 +122,8 @@ per_work <- per %>%
                       `5` = 'bachelor',
                       `6` = 'graduate',
                       `97` = 'others'))) %>%
+  mutate(edu_cat = factor(edu_cat,
+  levels = c('less than high school', 'high school', 'college no degree','technical school','bachelor','graduate','others'))) %>%
   filter(LIC < 98) %>%
   mutate(lic_dum = as.factor(recode(LIC, # recode driver license status
                       `1` = 'yes',
@@ -171,6 +175,8 @@ hh_work <- hh %>%
                             `10` = '$250,000 or more')),
          veh_num_cat = as.factor(veh_num),
          bike_num_cat = as.factor(bike_num)) %>%
+  mutate(income_cat = factor(income_cat,
+  levels = c('$0 to $9,999', '$10,000 to $24,999', '$25,000 to $34,999','$35,000 to $49,999','$50,000 to $74,999','$75,000 to $99,999','$100,000 to $149,999', '$150,000 to $199,999', '$200,000 to $249,999','$250,000 or more'))) %>%
   select(-income, -toll_accnt, -car_share)
 
 # combine three datasets
@@ -256,7 +262,8 @@ dat <- dat %>%
   mutate(age_cat_re = factor(case_when(
     age_cat %in% c('0-5', '6-12', '13-15', '16-17', '18-24') ~ 'under 24',
     age_cat %in% c('25-34', '35-44', '45-54', '55-64') ~ '25-64',
-    age_cat %in% c('65-74', '75-85', '86+') ~ 'above 65')))
+    age_cat %in% c('65-74', '75-85', '86+') ~ 'above 65'),
+    levels = c('under 24', '25-64', 'above 65')))
 
 dat %>%
   select(mode_cat, age_cat_re) %>%
@@ -471,7 +478,8 @@ dat <- dat %>%
   mutate(bike_num_cat_re = factor(case_when(
     bike_num_cat %in% c('0', '1') ~ 'zero or one bike',
     bike_num_cat %in% c('2', '3', '4') ~ 'two to four bikes',
-    bike_num_cat %in% c('5', '6', '7', '8', '9', '12') ~ 'five bikes or more')))
+    bike_num_cat %in% c('5', '6', '7', '8', '9', '12') ~ 'five bikes or more'),
+    levels = c('zero or one bike', 'two to four bikes', 'five bikes or more')))
 
 dat %>%
   select(mode_cat, bike_num_cat_re) %>%

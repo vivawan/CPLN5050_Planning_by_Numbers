@@ -579,7 +579,7 @@ for (i in 1:length(var_cat)){
     select(variable, category, count, percentage)}
 
 cat_one <- bind_rows(table_cat)
-write.csv(cat_one, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Continuous_1.csv")
+write.csv(cat_one, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Categorical_1.csv")
 
 ## plot
 plot_cat <- list()
@@ -619,7 +619,7 @@ for (i in 1:length(var_cat_re)){
     select(variable, category, count, percentage)}
 
 cat_two <- bind_rows(table_cat)
-write.csv(cat_two, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Continuous_2.csv")
+write.csv(cat_two, file = "/Users/yaohanxu/Documents/GitHub/CPLN5050_Planning_by_Numbers/output/Q2_Categorical_2.csv")
 
 ## plot
 plot_cat <- list()

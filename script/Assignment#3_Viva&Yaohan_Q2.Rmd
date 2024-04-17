@@ -681,8 +681,6 @@ mod11 <- mlogit (mode_cat ~ cost + time | race_cat_re + lic_dum
 summary(mod11)
 lrtest(mod11, mod10)
 AIC(mod11)
-BIC(mod11)
-BIC(mod1)
 logLik_val <- logLik(mod11)
 n <- nrow(dat.logit)
 k <- length(coef(mod11))

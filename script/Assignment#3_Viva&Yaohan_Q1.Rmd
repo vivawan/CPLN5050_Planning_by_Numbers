@@ -9,7 +9,7 @@ output:
     theme: flatly
     toc_float: yes
     code_folding: hide
-    number_sections: no
+    number_sections: yes
   pdf_document:
     toc: yes
 ---
@@ -123,6 +123,19 @@ dat <- all %>%
 
 # examine the quantity of each category
 summary(dat)
+
+colname.dat <- colnames(dat%>%select(-year, -candidate))
+
+for (i in colname.dat){
+  var <- 
+  ta<-table(dat[[i]], dat$year)
+  cat("\nContingency Table for:", i, "\n")
+  print(ta)
+}
+
+table(dat$class, dat$year)
+table(dat$party,dat$year)
+table(dat$trust, dat$year)
 ```
 
 ```{r recode}
@@ -192,7 +205,7 @@ dat <- dat %>%
          hispanic = factor(recode(hispanic,
                                        `1` = 'hispanic',
                                        `2` = 'non-hispanic'),
-                              levels = c('hispanic', 'non-hispanic')),
+                              levels = c('non-hispanic', 'hispanic')),
          lgbt = factor(recode(lgbt,
                                  `1` = 'yes',
                                  `5` = 'no',
@@ -222,7 +235,7 @@ dat <- dat %>%
          south = factor(recode(south,
                                  `1` = 'south',
                                  `2` = 'non-south'),
-                           levels = c('south', 'non-south')))
+                           levels = c('non-south', 'south')))
 
 summary(dat)
 
@@ -275,8 +288,8 @@ This category starts from 1975 and includes all subsequent years. It generally i
 - Upper middle  
 
 ```{r reclassify 2012}
-# plot the percentage of voting results
-reclassify.var <- c('birth','race','income','education','class')
+# plot the percentage of voting results for original categories
+reclassify.var <- c('birth','race','education','class')
 plot.12 <- list()
 
 for (i in 1:length(reclassify.var)) {
@@ -295,9 +308,9 @@ for (i in 1:length(reclassify.var)) {
         theme_bw()+
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
-wrap_plots(plot.12, ncol = 3) + 
+wrap_plots(plot.12, ncol = 2) + 
   plot_layout(guides = 'collect')+
-  plot_annotation(title = "Percentage of Voting by Category in 2012",
+  plot_annotation(title = "Percentage of Voting by Original Category in 2012",
                   theme = theme(plot.title = element_text(hjust = 0.5)))
 
 # reclassify
@@ -329,12 +342,35 @@ dat.12 <- dat.12 %>%
          class,class.re,hispanic,
          lgbt,gun,trust,party,south)
 
-summary(dat.12)
+# plot the percentage of voting results for reclassified categories
+reclassify.var.re <- c('birth.re','race.re','education.re','class.re')
+plot.12.re <- list()
+
+for (i in 1:length(reclassify.var.re)) {
+  var = reclassify.var.re[i]
+  
+  plot.12.re[[i]] <- dat.12 %>%
+    select(candidate, !!sym(var)) %>% na.omit() %>%
+    group_by(candidate,!!sym(var)) %>%
+    summarize(count.vote = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count.vote/sum(count.vote)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var),percentage)) +
+        geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot.12.re, ncol = 2) + 
+  plot_layout(guides = 'collect')+
+  plot_annotation(title = "Percentage of Voting by Reclassified Category in 2012",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
 ```
 
 ```{r reclassify 2016}
-# plot the percentage of voting results
-reclassify.var <- c('birth','race','income','education','class')
+# plot the percentage of voting results on original categories
+reclassify.var <- c('birth','race','education','class')
 plot.16 <- list()
 
 for (i in 1:length(reclassify.var)) {
@@ -353,9 +389,9 @@ for (i in 1:length(reclassify.var)) {
         theme_bw()+
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
-wrap_plots(plot.16, ncol = 3) + 
+wrap_plots(plot.16, ncol = 2) + 
   plot_layout(guides = 'collect')+
-  plot_annotation(title = "Percentage of Voting by Category in 2016",
+  plot_annotation(title = "Percentage of Voting by Original Category in 2016",
                   theme = theme(plot.title = element_text(hjust = 0.5)))
 
 # reclassify
@@ -387,6 +423,31 @@ dat.16 <- dat.16 %>%
          class,class.re,hispanic,
          lgbt,gun,trust,party,south)
 
+# plot the percentage of voting results on reclassified categories
+reclassify.var.re <- c('birth.re','race.re','education.re','class.re')
+plot.16.re <- list()
+
+for (i in 1:length(reclassify.var.re)) {
+  var = reclassify.var.re[i]
+  
+  plot.16.re[[i]] <- dat.16 %>%
+    select(candidate, !!sym(var)) %>% na.omit() %>%
+    group_by(candidate,!!sym(var)) %>%
+    summarize(count.vote = n(), .groups = 'drop') %>%
+    group_by(!!sym(var))%>%
+    mutate(percentage = round(count.vote/sum(count.vote)*100), digit= 0)%>%
+    ungroup()%>%
+      ggplot(aes(!!sym(var),percentage)) +
+        geom_bar(aes(fill= candidate), position="dodge", stat="identity") +
+        scale_fill_viridis(discrete = TRUE) +
+        theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+wrap_plots(plot.16.re, ncol = 2) + 
+  plot_layout(guides = 'collect')+
+  plot_annotation(title = "Percentage of Voting by Reclassified Category in 2016",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
 summary(dat.16)
 ```
 ## summary  
@@ -400,21 +461,83 @@ for (i in 1:length(var.12)){
   var = var.12[i]
   
   table.12[[i]] <- dat.12 %>%
-    group_by(!!sym(var), candidate) %>%
-    summarise(count = n(), .groups = 'drop') %>%
-    group_by(!!sym(var))%>%
+    group_by(!!sym(var)) %>%
+    summarise(count = n()) %>%
     mutate(percentage = round(count/sum(count) * 100, digits = 0),
            variable = var,
-           category = as.character(!!sym(var)),
-           vote = as.character(candidate))%>%
+           category = as.character(!!sym(var)))%>%
     ungroup()%>%
-    select(variable, category, vote, count, percentage)
+    select(variable, category, count, percentage)
 }
-bind_rows(table.12) %>%
+table.12.cat <- bind_rows(table.12)
+table.12.cat %>%
   kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for 2012</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
+  collapse_rows(columns = 1, valign = "middle")
+
+## continuous var.
+# table
+dat.12.con <- dat.12 %>%
+  select(age) %>%
+  summarise(
+    N = n(),
+    Mean = mean(age, na.rm = TRUE),
+    StDev = sd(age, na.rm = TRUE),
+    Min = min(age, na.rm = TRUE),
+    Max = max(age, na.rm = TRUE),
+    .groups = 'drop') 
+
+dat.12.con%>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Continuous Variables (age) for 2012</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")
+
+```
+
+```{r summary 16}
+# table
+var.16 <- colnames(dat.16%>%select(-year, -candidate,-age))
+table.16<- list()
+
+for (i in 1:length(var.16)){
+  var = var.16[i]
+  
+  table.16[[i]] <- dat.16 %>%
+    group_by(!!sym(var)) %>%
+    summarise(count = n())%>%
+    mutate(percentage = round(count/sum(count) * 100, digits = 0),
+           variable = var,
+           category = as.character(!!sym(var)))%>%
+    ungroup()%>%
+    select(variable, category, count, percentage)
+}
+table.16.cat <- bind_rows(table.16) 
+
+table.16.cat%>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for 2016</span>") %>%
   kable_paper("hover", full_width = F, html_font = "New Romans")%>%
   collapse_rows(columns = 1:3, valign = "middle")
 
+## continuous var.
+# table
+dat.16.con <- dat.16 %>%
+  select(age) %>%
+  summarise(
+    N = n(),
+    Mean = mean(age, na.rm = TRUE),
+    StDev = sd(age, na.rm = TRUE),
+    Min = min(age, na.rm = TRUE),
+    Max = max(age, na.rm = TRUE),
+    .groups = 'drop') 
+
+dat.16.con%>%
+  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Continuous Variables (age) for 2016</span>") %>%
+  kable_paper("hover", full_width = F, html_font = "New Romans")
+
+```
+
+## voting pattern
+```{r voting pattern}
+## 2012
 # plots
 plot.12 <- list()
 
@@ -439,49 +562,7 @@ wrap_plots(plot.12, ncol = 3) +
   plot_annotation(title = "Percentage of Voting by Category in 2012",
                   theme = theme(plot.title = element_text(hjust = 0.5)))
 
-## continuous var.
-# table
-dat.12 %>%
-  group_by(candidate) %>%
-  summarise(
-    N = n(),
-    Mean = mean(age, na.rm = TRUE),
-    StDev = sd(age, na.rm = TRUE),
-    Min = min(age, na.rm = TRUE),
-    Max = max(age, na.rm = TRUE),
-    .groups = 'drop'  # Avoids retaining the grouping structure in the result
-  ) %>%
-  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Continuous Variables (age) for 2012</span>") %>%
-  kable_paper("hover", full_width = F, html_font = "New Romans")
-# plot
-
-
-```
-
-```{r summary 16}
-# table
-var.16 <- colnames(dat.16%>%select(-year, -candidate))
-table.16<- list()
-
-for (i in 1:length(var.16)){
-  var = var.16[i]
-  
-  table.16[[i]] <- dat.16 %>%
-    group_by(!!sym(var), candidate) %>%
-    summarise(count = n(), .groups = 'drop') %>%
-    group_by(!!sym(var))%>%
-    mutate(percentage = round(count/sum(count) * 100, digits = 0),
-           variable = var,
-           category = as.character(!!sym(var)),
-           vote = as.character(candidate))%>%
-    ungroup()%>%
-    select(variable, category, vote, count, percentage)
-}
-bind_rows(table.16) %>%
-  kable(caption = "<span style='font-weight: bold; color: black;'>Summary of Categorical Variables for 2016</span>") %>%
-  kable_paper("hover", full_width = F, html_font = "New Romans")%>%
-  collapse_rows(columns = 1:3, valign = "middle")
-
+# 2016
 # plots
 plot.16 <- list()
 
@@ -505,9 +586,7 @@ wrap_plots(plot.16, ncol = 3) +
   plot_layout(guides = 'collect')+
   plot_annotation(title = "Percentage of Voting by Category in 2016",
                   theme = theme(plot.title = element_text(hjust = 0.5)))
-
 ```
-
 
 
 
@@ -553,7 +632,7 @@ stargazer(mod12.2.1, mod12.2.2, type = "text")
 dat.12 <- dat.12 %>%
   select(-race)
 
-# choose education v.s. education.re
+# choose education vs. education.re
 mod12.3.1 <- glm(candidate ~ .-year-education,
                  data = dat.12,
                  na.action = na.exclude,
@@ -567,7 +646,7 @@ stargazer(mod12.3.1, mod12.3.2, type = "text")
 dat.12 <- dat.12 %>%
   select(-education)
 
-# choose class v.s. class.re
+# choose class vs. class.re
 mod12.4.1 <- glm(candidate ~ .-year-class,
                  data = dat.12,
                  na.action = na.exclude,
@@ -904,6 +983,15 @@ summary(mod16.5)
 ## final model
 ```{r final model}
 stargazer(mod12.5, mod16.5, type = 'text', star.cutoffs = c(0.05, 0.01, 0.001))
+model.final <- capture.output(
+  stargazer(mod12.5, mod16.5, type = 'text', star.cutoffs = c(0.05, 0.01, 0.001))
+)
+writeLines(model.final, "model_summary.txt")
+
+AIC(mod12.5)
+AIC(mod16.5)
+BIC(mod12.5)
+BIC(mod16.5)
 ```
 
 

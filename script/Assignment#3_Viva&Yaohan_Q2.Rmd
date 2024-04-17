@@ -679,6 +679,12 @@ mod11 <- mlogit (mode_cat ~ cost + time | race_cat_re + lic_dum
                  + income_cat_re, data = dat.logit, reflevel = "car")
 summary(mod11)
 lrtest(mod11, mod10)
+AIC(mod11)
+BIC(mod11)
+logLik_val <- logLik(mod11)
+n <- nrow(dat.logit)
+k <- length(coef(mod11))
+bic_val <- -2 * as.numeric(logLik_val) + log(n) * k
 ```
 
 ## Model results

@@ -526,22 +526,23 @@ summary(mod2.2)
 ## edu_cat & edu_cat_re —> edu_cat_re
 mod3.1 <- mlogit (mode_cat ~ cost + time | edu_cat, data = dat.logit, reflevel = "car")
 mod3.2 <- mlogit (mode_cat ~ cost + time | edu_cat_re, data = dat.logit, reflevel = "car")
-stargazer(mod3.1, mod3.2, type = "text")
+stargazer(mod3.1, mod3.2, type = "text", star.cutoffs = c(0.05, 0.01, 0.001))
 
 ## veh_num & veh_num_cat & veh_num_cat_re —> veh_num
 mod4.1 <- mlogit (mode_cat ~ cost + time | veh_num, data = dat.logit, reflevel = "car")
 mod4.3 <- mlogit (mode_cat ~ cost + time | veh_num_cat_re, data = dat.logit, reflevel = "car")
-stargazer(mod4.1, mod4.3, type = "text")
+stargazer(mod4.1, mod4.3, type = "text", star.cutoffs = c(0.05, 0.01, 0.001))
 
 ## bike_num & bike_num_cat & bike_num_cat_re —> bike_num
 mod5.1 <- mlogit (mode_cat ~ cost + time | bike_num, data = dat.logit, reflevel = "car")
 mod5.3 <- mlogit (mode_cat ~ cost + time | bike_num_cat_re, data = dat.logit, reflevel = "car")
-stargazer(mod5.1, mod5.3, type = "text")
+stargazer(mod5.1, mod5.3, type = "text", star.cutoffs = c(0.05, 0.01, 0.001))
 
 ## income_cat & income_cat_re —> income_cat_re
 mod6.1 <- mlogit (mode_cat ~ cost + time | income_cat, data = dat.logit, reflevel = "car")
 mod6.2 <- mlogit (mode_cat ~ cost + time | income_cat_re, data = dat.logit, reflevel = "car")
-stargazer(mod6.1, mod6.2, type = "text")
+stargazer(mod6.1, mod6.2, type = "text", star.cutoffs = c(0.05, 0.01, 0.001))
+
 ```
 
 ### Summary table
@@ -681,10 +682,14 @@ summary(mod11)
 lrtest(mod11, mod10)
 AIC(mod11)
 BIC(mod11)
+BIC(mod1)
 logLik_val <- logLik(mod11)
 n <- nrow(dat.logit)
 k <- length(coef(mod11))
 bic_val <- -2 * as.numeric(logLik_val) + log(n) * k
+
+table(dat$mode_cat,dat$park_sub_cat)
+table(dat$mode_cat,dat$transit_sub_cat)
 ```
 
 ## Model results
@@ -702,7 +707,7 @@ bic_val <- -2 * as.numeric(logLik_val) + log(n) * k
 dat.1 <- dat
 dat.1$cost.car <- dat.1$cost.car * 1.5
 dat.1.logit <- mlogit.data(dat.1, shape="wide", 
-                           choice="mode_cat", varying=c(22:27))  
+                           choice="mode_cat", varying=c(22:27)) 
 
 #average predicted probability for using each mode before and after intervention
 apply(predict(mod.1, type = "response", newdata = dat.logit), 2, mean)

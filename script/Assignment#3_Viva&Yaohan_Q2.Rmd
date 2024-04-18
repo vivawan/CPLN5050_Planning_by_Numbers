@@ -694,22 +694,39 @@ table(dat$mode_cat,dat$transit_sub_cat)
 
 ### Model prediction
 
-```{r}
-#how changing variables affect mode choice####
-#a few options to think about
-#what if we increase cost of driving by xx%? how would that affect predicted average probabilities?
-#what if we reduce travel time on transit by xx%? how would that affect predicted average probabilities?
-#what if we increase the income of those who are currently at the bottom of the income brackets by xx%?
-
-#increasing driving cost by 50%
+```{r intervention}
+# driving cost
 dat.1 <- dat
-dat.1$cost.car <- dat.1$cost.car * 1.5
+dat.1$cost.car <- dat.1$cost.car * 1.75
 dat.1.logit <- mlogit.data(dat.1, shape="wide", 
-                           choice="mode_cat", varying=c(22:27)) 
+                           choice="mode_cat", varying=c(20:25))
 
-#average predicted probability for using each mode before and after intervention
-apply(predict(mod.1, type = "response", newdata = dat.logit), 2, mean)
-apply(predict(mod.1, type = "response", newdata = dat.1.logit), 2, mean)
+# transit time
+dat.2 <- dat
+dat.2$time.transit <- dat.2$time.transit * 1.75
+dat.2.logit <- mlogit.data(dat.2, shape="wide", 
+                           choice="mode_cat", varying=c(20:25))
+
+# vehicle number
+dat.3 <- dat
+dat.3 <- dat.3 %>%
+  mutate(veh_num = veh_num + 1)
+dat.3.logit <- mlogit.data(dat.3, shape="wide", 
+                           choice="mode_cat", varying=c(20:25))
+
+# bike number
+dat.4 <- dat
+dat.4 <- dat.4 %>%
+  mutate(bike_num = bike_num + 2)
+dat.4.logit <- mlogit.data(dat.4, shape="wide", 
+                           choice="mode_cat", varying=c(20:25))
+
+# average predicted probability for using each mode before and after intervention
+apply(predict(mod11, type = "response", newdata = dat.logit), 2, mean)
+apply(predict(mod11, type = "response", newdata = dat.1.logit), 2, mean)
+apply(predict(mod11, type = "response", newdata = dat.2.logit), 2, mean)
+apply(predict(mod11, type = "response", newdata = dat.3.logit), 2, mean)
+apply(predict(mod11, type = "response", newdata = dat.4.logit), 2, mean)
 ```
 
 ```{r prediction}
@@ -733,21 +750,6 @@ for (i in 1:length(dat$PERSON_ID)) {
 }
 
 table(dat$pred_mode)/length(dat$pred_mode)
-
-#calculate model fit statistics####
-#count R squared
-#misclassification error
-#correct rate for car
-#correct rate for transit
-#correct rate for bike
+table(dat$mode_cat, dat$pred_mode)
+table(dat$mode_cat)
 ```
-
-
-
-
-
-
-
-
-
-

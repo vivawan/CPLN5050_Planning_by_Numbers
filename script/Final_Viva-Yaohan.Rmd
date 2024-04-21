@@ -47,6 +47,7 @@ conflicts_prefer(dplyr::recode)
 ```
 
 ```{r load data}
+## transit station data
 tran <- read_csv(here::here('data/raw/201501-hubway-tripdata.csv'))
 colnames(tran)
 
@@ -63,15 +64,38 @@ dif <- sta.sta %>%
   select(`start station id`) %>%
   anti_join(sta.end %>% select(`end station id`), by = c('start station id' = 'end station id' ))
 
+# metro station sf
 sta <- sta.end %>%
   st_as_sf(coords = c("end station longitude", "end station latitude"), crs = 4326)
+  #???? 没找到scrs
+  st_transform(crs = 'EPSG:2001')
 
+# metro buffer
+staBuffer <- st_buffer(sta, 2640)
+
+## bike station data
 bike <- read_csv(here::here('data/raw/current_bluebikes_stations.csv')) 
+
+#set the first row as the colnames
 colnames(bike) <- as.character(unlist(bike[1, ]))
 bike <- bike[-1, ]
-bike <- bike %>%
-  st_as_sf(coords = c("end station longitude", "end station latitude"), crs = 4326)
 
+# bike station sf
+bike <- bike %>%
+  st_as_sf(coords = c("Long", "Lat"), crs = 4326)
+
+
+# mapping -》 change unit
+ggplot() + 
+  geom_sf(data=staBuffer)+
+  geom_sf(data=sta,
+          aes(colour = 'blue')) + 
+  geom_sf(data=bike, 
+          aes(colour = 'green')) +
+  labs(title="Metro and Bike Stations", 
+       subtitle="Philadelphia, PA", 
+       caption="Figure 2.5") +
+  theme_void()
 ```
 
 

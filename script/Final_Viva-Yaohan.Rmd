@@ -1,0 +1,80 @@
+---
+title: "Final Assignment"
+author: "Viva/Yaohan"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    keep_md: yes
+    toc: yes
+    theme: flatly
+    toc_float: yes
+    code_folding: hide
+    number_sections: no
+  pdf_document:
+    toc: yes
+---
+<style>
+.kable thead tr th, .table thead tr th {
+  text-align: left !important;}
+table.kable, table.table {
+  width: 100% !important;}
+  body {
+  line-height: 1.6;
+  font-size: 16px
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache = TRUE,
+  dpi = 150)
+options(scipen = 999)
+
+if(!require(pacman)){install.packages("pacman"); library(pacman)}
+p_load(tidyverse, sf, units, nngeo, tmap, tinytex, kableExtra, janitor, classInt,
+       patchwork, here, tidycensus, lwgeom, lsr, haven, descr, RColorBrewer, stargazer,
+       car, FNN, GGally, MASS, ISLR2, spdep, caret, ckanr, grid, gridExtra, ggcorrplot,
+       jtools, broom, tufte, rmarkdown, corrr, RSocrata, viridis, spatstat, raster, knitr,
+       arm, mlogit, readxl, lubridate)
+
+library(conflicted)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::recode)
+```
+
+```{r load data}
+tran <- read_csv(here::here('data/raw/201501-hubway-tripdata.csv'))
+colnames(tran)
+
+sta.end <- tran %>%
+  select(`end station id`,`end station latitude`, `end station longitude`)%>% 
+  distinct(`end station id`, .keep_all = TRUE)
+
+sta.sta <- tran %>%
+  select(`start station id`,`start station latitude`, `start station longitude`)%>% 
+  distinct(`start station id`, .keep_all = TRUE)
+
+# is there any station only serve as end/start station -> none
+dif <- sta.sta %>%
+  select(`start station id`) %>%
+  anti_join(sta.end %>% select(`end station id`), by = c('start station id' = 'end station id' ))
+
+sta <- sta.end %>%
+  st_as_sf(coords = c("end station longitude", "end station latitude"), crs = 4326)
+
+bike <- read_csv(here::here('data/raw/current_bluebikes_stations.csv')) 
+colnames(bike) <- as.character(unlist(bike[1, ]))
+bike <- bike[-1, ]
+bike <- bike %>%
+  st_as_sf(coords = c("end station longitude", "end station latitude"), crs = 4326)
+
+```
+
+
+## R Markdown
+
+

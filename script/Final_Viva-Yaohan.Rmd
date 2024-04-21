@@ -48,9 +48,9 @@ conflicts_prefer(dplyr::recode)
 
 ```{r load data}
 ## transit station data
-tran <- read_csv(here::here('data/raw/201501-hubway-tripdata.csv'))
+tran <- read_csv(here::here('data/raw/201901-bluebikes-tripdata.csv'))
 colnames(tran)
-
+length(unique(tran$`end station name`))
 sta.end <- tran %>%
   select(`end station id`,`end station latitude`, `end station longitude`)%>% 
   distinct(`end station id`, .keep_all = TRUE)

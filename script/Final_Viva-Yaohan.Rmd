@@ -13,6 +13,7 @@ output:
   pdf_document:
     toc: yes
 ---
+
 <style>
 .kable thead tr th, .table thead tr th {
   text-align: left !important;}
@@ -46,34 +47,66 @@ conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::recode)
 ```
 
-# Data Wrangling
+# Data Preparation
 
 1. Transit Data
 - Transit Ridership
-MBTA Rail Ridership by Time Period, Season, Route/Line, and Stop: https://mbta-massdot.opendata.arcgis.com/datasets/9fea7862501f4c59ab2c001ad6ae19b0_0/explore
+MBTA Rail Ridership by Time Period, Season, Route/Line, and Stop: https://mbta-massdot.opendata.arcgis.com/search?tags=ridership
 The data is for Fall2019, Fall2018, and Fall2017. Since Fall2018 only has data for September, so we only use ridership data for Fall2019 and Fall2017.
 
 - Transit Station
 MBTA Rapid Transit: https://www.mass.gov/info-details/massgis-data-mbta-rapid-transit#downloads-
-Name and location for each transit stop. Combined with ridership data.
+Name and location for each transit stop； Combined with ridership data.
 
-- Definition for "Fall" in Boston
+- Definition for "Fall" in MassDOT
 Important Work Restrictions for massDOT: https://www.mass.gov/doc/controls-guidelines-attachment-a-important-work-restrictions/download
-The Fall season in Boston is from August.15 to November.1, so we use bike data for August, September and October.
+The Fall season defined by MassDOT is from August.15 to November.1, so we use bike data for August, September and October.
 
 2. Bike Data
 - Bike ridership
 Blue Bikes Comprehensive Trip Histories: https://s3.amazonaws.com/hubway-data/index.html
+2017: August, September, October
+2019: August, September, October
 
 - Bike Station
 Bluebikes Stations: https://bluebikes.com/system-data
 
 3. Demographic Data
+https://www.bostonplans.org/3d-data-maps/resources
+https://data.census.gov/
 
 4. Other Data
-```{r load_data, message = FALSE, warning = FALSE}
-## transit station data
+- MBTA Boundary
+MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=boundary
 
+## Import Datasets
+
+```{r load_data, message = FALSE, warning = FALSE}
+# Transit Data
+## Transit Ridership
+tran_rider <- read_csv(here::here("data/final/Transit_Ridership.csv"))
+## Transit Station
+tran_line <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_ARC.shp"))
+tran_stop <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_NODE.shp"))
+
+# Bike Data
+## Bike Ridership
+bike_rider_17_aug <- read_csv(here::here("data/final/201708-hubway-tripdata.csv"))
+bike_rider_17_sep <- read_csv(here::here("data/final/201709-hubway-tripdata.csv"))
+bike_rider_17_oct <- read_csv(here::here("data/final/201710-hubway-tripdata.csv"))
+bike_rider_19_aug <- read_csv(here::here("data/final/201908-bluebikes-tripdata.csv"))
+bike_rider_19_sep <- read_csv(here::here("data/final/201909-bluebikes-tripdata.csv"))
+bike_rider_19_oct <- read_csv(here::here("data/final/201910-bluebikes-tripdata.csv"))
+## Bike Station
+bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
+
+# Demographic Data
+##
+
+
+# Other Data
+## MBTA Boundary
+mbta_core <-
 ```
 
 

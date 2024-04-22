@@ -45,6 +45,7 @@ library(conflicted)
 conflicts_prefer(dplyr::select)
 conflicts_prefer(dplyr::filter)
 conflicts_prefer(dplyr::recode)
+conflicts_prefer(sf::st_crs)
 ```
 
 # Data Preparation
@@ -89,6 +90,7 @@ tran_rider <- read_csv(here::here("data/final/Transit_Ridership.csv"))
 tran_line <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_ARC.shp"))
 tran_stop <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_NODE.shp"))
 
+
 # Bike Data
 ## Bike Ridership
 bike_rider_17_aug <- read_csv(here::here("data/final/201708-hubway-tripdata.csv"))
@@ -100,16 +102,132 @@ bike_rider_19_oct <- read_csv(here::here("data/final/201910-bluebikes-tripdata.c
 ## Bike Station
 bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
+
 # Demographic Data
 ##
 
 
 # Other Data
 ## MBTA Boundary
-mbta_core <-
+mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp"))
 ```
 
+## Data Wrangling
 
-## R Markdown
+```{r data_clean}
+# Transit Data
+## Transit Ridership
+
+
+# Bike Data
+## Bike Station
+colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
+bike_stop <- bike_stop[-1, ] %>%
+  select(Name = NAME,
+         Total_Docks = `Total Docks`)
+
+## Combine 2017
+bike_rider_17 <- bind_rows(bike_rider_17_aug, bike_rider_17_sep, bike_rider_17_oct)
+sum(duplicated(bike_rider_17))
+
+### Start Trips
+bike_rider_17_start <- bike_rider_17 %>%
+  group_by(`start station name`) %>%
+  summarise(Start_Trip_17 = n()) %>%
+  rename(Name = `start station name`)
+
+### End Trips
+bike_rider_17_end <- bike_rider_17 %>%
+  group_by(`end station name`) %>%
+  summarise(End_Trip_17 = n()) %>%
+  rename(Name = `end station name`)
+
+### 2017 Bike Stops
+sum(bike_rider_17_start$Name %in% bike_rider_17_end$Name)
+bike_stop_17 <- bike_rider_17 %>%
+  select(Name = `start station name`,
+         Long = `start station longitude`,
+         Lat = `start station latitude`) %>%
+  group_by(Name, Long, Lat) %>%
+  tally() %>%
+  ungroup() %>%
+  select(-n) %>%
+  distinct(Name, .keep_all = TRUE) %>%
+  filter(Lat != 0 & Long != 0)
+
+### 2017 Total Trips
+bike_rider_17 <- bike_rider_17_start %>%
+  left_join(., bike_rider_17_end, by = "Name") %>%
+  mutate(Bike_Rider_17 = Start_Trip_17 + End_Trip_17) %>%
+  left_join(bike_stop_17, ., by = "Name") %>%
+  filter(!is.na(Bike_Rider_17)) %>%
+  st_as_sf(coords = c("Long", "Lat"), crs = 4326, agr = "constant") %>%
+  st_transform(st_crs(tran_stop)) %>%
+  select(Name, Bike_Rider_17) %>%
+  left_join(., bike_stop, by = "Name") %>%
+  mutate(Total_Docks = as.numeric(Total_Docks)) %>%
+  mutate(Total_Docks = replace_na(Total_Docks,
+                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>%
+  relocate(Total_Docks, .before = geometry)
+
+## Combine 2019
+bike_rider_19 <- bind_rows(bike_rider_19_aug, bike_rider_19_sep, bike_rider_19_oct)
+sum(duplicated(bike_rider_19))
+
+### Start Trips
+bike_rider_19_start <- bike_rider_19 %>%
+  group_by(`start station name`) %>%
+  summarise(Start_Trip_19 = n()) %>%
+  rename(Name = `start station name`)
+
+### End Trips
+bike_rider_19_end <- bike_rider_19 %>%
+  group_by(`end station name`) %>%
+  summarise(End_Trip_19 = n()) %>%
+  rename(Name = `end station name`)
+
+### 2019 Bike Stops
+sum(bike_rider_19_start$Name %in% bike_rider_19_end$Name)
+stop_17 <- unique(bike_rider_17$Name)
+bike_stop_19 <- bike_rider_19 %>%
+  select(Name = `end station name`,
+         Long = `end station longitude`,
+         Lat = `end station latitude`) %>%
+  group_by(Name, Long, Lat) %>%
+  tally() %>%
+  ungroup() %>%
+  select(-n) %>%
+  distinct(Name, .keep_all = TRUE) %>%
+  filter(Lat != 0 & Long != 0) %>%
+  mutate(New_Stop = ifelse(Name %in% stop_17, 0, 1))
+
+### 2019 Total Trips
+bike_rider_19 <- bike_rider_19_start %>%
+  left_join(., bike_rider_19_end, by = "Name") %>%
+  mutate(Bike_Rider_19 = Start_Trip_19 + End_Trip_19) %>%
+  left_join(bike_stop_19, ., by = "Name") %>%
+  filter(!is.na(Bike_Rider_19)) %>%
+  st_as_sf(coords = c("Long", "Lat"), crs = 4326, agr = "constant") %>%
+  st_transform(st_crs(tran_stop)) %>%
+  select(Name, Bike_Rider_19, New_Stop) %>%
+  left_join(., bike_stop, by = "Name") %>%
+  mutate(Total_Docks = as.numeric(Total_Docks)) %>%
+  mutate(Total_Docks = replace_na(Total_Docks,
+                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>%
+  relocate(Total_Docks, .before = geometry)
+
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", "bike_rider_17", "bike_rider_19", "mbta_core")))
+
+
+# Demographic Data
+
+
+# Other Data
+## MBTA Boundary
+mbta_core <- mbta_core %>%
+  st_transform(st_crs(tran_stop))
+
+```
+
 
 

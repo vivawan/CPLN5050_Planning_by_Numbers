@@ -116,6 +116,16 @@ mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.
 
 ```{r data_clean}
 # Transit Data
+## Align Station Name between Two Datasets
+name_rider <- unique(tran_rider$stop_name)
+name_stop <- tran_stop$STATION
+not_in_station <- as.data.frame(setdiff(name_rider, name_stop))
+
+tran_rider <- tran_rider %>%
+  mutate(stop_name = case_when(
+    stop_name == "" ~ "",
+    TRUE ~ stop_name))
+
 ## Transit Ridership
 tran_rider_17 <- tran_rider %>%
   filter(season == "Fall 2017")
@@ -123,12 +133,7 @@ tran_rider_17 <- tran_rider %>%
 tran_rider_19 <- tran_rider %>%
   filter(season == "Fall 2019")
 
-name_17 <- unique(tran_rider_17$stop_name)
-name_stop <- tran_stop$STATION
-not_in_station <- as.data.frame(setdiff(name_17, name_stop))
-name_19 <- unique(tran_rider_19$stop_name)
-sum(name_19 %in% tran_stop$STATION)
-##
+## Transit Station
 
 
 # Bike Data
@@ -228,7 +233,8 @@ bike_rider_19 <- bike_rider_19_start %>%
                                   floor(mean(Total_Docks, na.rm = TRUE)))) %>%
   relocate(Total_Docks, .before = geometry)
 
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", "bike_rider_17", "bike_rider_19", "mbta_core")))
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17", "tran_rider_19",
+                          "bike_rider_17", "bike_rider_19", "mbta_core")))
 
 
 # Demographic Data
@@ -238,7 +244,6 @@ rm(list = setdiff(ls(), c("tran_line", "tran_stop", "bike_rider_17", "bike_rider
 ## MBTA Boundary
 mbta_core <- mbta_core %>%
   st_transform(st_crs(tran_stop))
-
 ```
 
 

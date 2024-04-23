@@ -112,7 +112,10 @@ bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
 
 # Bus Data
+## Bus Ridership
 
+## Bus Stop
+bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp"))
 
 
 # Demographic Data
@@ -271,6 +274,15 @@ bike_rider_19 <- bike_rider_19_start %>%
 
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17", "tran_rider_19",
                           "bike_rider_17", "bike_rider_19", "mbta_core")))
+
+
+# Bus Data
+## Bus Ridership
+
+
+## Bus Stop
+bus_stop <- bus_stop %>%
+  st_transform(st_crs(tran_stop))
 
 
 # Demographic Data

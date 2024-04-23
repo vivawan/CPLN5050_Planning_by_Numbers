@@ -73,11 +73,18 @@ Blue Bikes Comprehensive Trip Histories: https://s3.amazonaws.com/hubway-data/in
 - Bike Station
 Bluebikes Stations: https://bluebikes.com/system-data
 
-3. Demographic Data
+3. Bus Data
+- Bus Ridership
+MBTA Bus Ridership by Trip, Season, Route/Line, and Stop: (Silver Line?) https://mbta-massdot.opendata.arcgis.com/datasets/fc95594660634a2fb1a7c6c550f13ef5_0/explore
+
+- Bus Stop
+MBTA Bus Routes and Stops: https://www.mass.gov/info-details/massgis-data-mbta-bus-routes-and-stops?_gl=1*1iy371g*_ga*MTQzMTUzMDg3Mi4xNzA4MTExODY2*_ga_MCLPEGW7WM*MTcxMzg4OTY1OC4xLjEuMTcxMzg4OTY4MS4wLjAuMA..#overview-
+
+4. Demographic Data
 https://www.bostonplans.org/3d-data-maps/resources
 https://data.census.gov/
 
-4. Other Data
+5. Other Data
 - MBTA Boundary
 MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=boundary
 
@@ -102,6 +109,10 @@ bike_rider_19_sep <- read_csv(here::here("data/final/201909-bluebikes-tripdata.c
 bike_rider_19_oct <- read_csv(here::here("data/final/201910-bluebikes-tripdata.csv"))
 ## Bike Station
 bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
+
+
+# Bus Data
+
 
 
 # Demographic Data
@@ -263,12 +274,13 @@ rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17", "tran_rider
 
 
 # Demographic Data
-
+## Select Variables
 acs_vars_17 <- c("B01003_001E", # Total population
                  ) 
 
 acs_vars_19 <- c("B01003_001E", # Total population
                  )
+
 ## 2017
 acsTracts_2017 <- get_acs(geography = "tract",
                              year = 2017, 
@@ -298,12 +310,6 @@ mbta_core <- mbta_core %>%
   st_transform(st_crs(tran_stop)) %>%
   st_union() %>%
   st_as_sf()
-
-
-ggplot() + 
-  geom_sf(data = mbta_core, aes(), color = "black") +
-  geom_sf(data = tran_line) +
-  geom_sf(data = tran_stop)
 ```
 
 

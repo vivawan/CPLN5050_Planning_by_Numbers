@@ -54,6 +54,7 @@ conflicts_prefer(sf::st_crs)
 - Transit Ridership
 MBTA Rail Ridership by Time Period, Season, Route/Line, and Stop: https://mbta-massdot.opendata.arcgis.com/search?tags=ridership
 The data is for Fall2019, Fall2018, and Fall2017. Since Fall2018 only has data for September, so we only use ridership data for Fall2019 and Fall2017.
+MBTA Gated Station Entries: https://mbta-massdot.opendata.arcgis.com/datasets/7859894afb5641ce91a2bb03599fdf5b/about
 
 - Transit Station
 MBTA Rapid Transit: https://www.mass.gov/info-details/massgis-data-mbta-rapid-transit#downloads-
@@ -104,7 +105,16 @@ bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
 
 # Demographic Data
-##
+## Load census tract data
+census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overwrite = TRUE)
+
+acs_variable_list.2017 <- load_variables(2017, # Year
+                                         "acs5", # Five year ACS estimates
+                                         cache = TRUE)
+
+acs_variable_list.2019 <- load_variables(2019, # Year
+                                         "acs5", # Five year ACS estimates
+                                         cache = TRUE)
 
 
 # Other Data
@@ -117,14 +127,30 @@ mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.
 ```{r data_clean}
 # Transit Data
 ## Align Station Name between Two Datasets
+tran_rider <- tran_rider %>%
+  mutate(stop_name = case_when(
+    stop_name == "Back of the Hill" ~ "Back Of The Hill",
+    stop_name == "Boston Univ. Central" ~ "Boston University Central",
+    stop_name == "Boston Univ. East" ~ "Boston University East",
+    stop_name == "Boston Univ. West" ~ "Boston University West",
+    stop_name == "Chestnut Hill Ave." ~ "Chestnut Hill Avenue",
+    stop_name == "Englewood Ave." ~ "Englewood Avenue",
+    stop_name == "Harvard Ave." ~ "Harvard Avenue",
+    stop_name == "JFK/Umass" ~ "JFK/UMass",
+    stop_name == "Massachusetts Ave." ~ "Massachusetts Ave",
+    stop_name == "Museum of Fine Arts" ~ "Museum Of Fine Arts",
+    stop_name == "Northeastern University" ~ "Northeastern",
+    stop_name == "Saint Mary Street" ~ "Saint Marys Street",
+    stop_name == "Science Park" ~ "Science Park/West End",
+    stop_name == "State Street" ~ "State",
+    stop_name == "Summit Ave." ~ "Summit Avenue",
+    TRUE ~ stop_name))
+
 name_rider <- unique(tran_rider$stop_name)
 name_stop <- tran_stop$STATION
 not_in_station <- as.data.frame(setdiff(name_rider, name_stop))
 
-tran_rider <- tran_rider %>%
-  mutate(stop_name = case_when(
-    stop_name == "" ~ "",
-    TRUE ~ stop_name))
+## Transit Station
 
 ## Transit Ridership
 tran_rider_17 <- tran_rider %>%
@@ -132,8 +158,6 @@ tran_rider_17 <- tran_rider %>%
 
 tran_rider_19 <- tran_rider %>%
   filter(season == "Fall 2019")
-
-## Transit Station
 
 
 # Bike Data
@@ -184,7 +208,7 @@ bike_rider_17 <- bike_rider_17_start %>%
   left_join(., bike_stop, by = "Name") %>%
   mutate(Total_Docks = as.numeric(Total_Docks)) %>%
   mutate(Total_Docks = replace_na(Total_Docks,
-                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>%
+                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
   relocate(Total_Docks, .before = geometry)
 
 ## Combine 2019
@@ -217,6 +241,7 @@ bike_stop_19 <- bike_rider_19 %>%
   distinct(Name, .keep_all = TRUE) %>%
   filter(Lat != 0 & Long != 0) %>%
   mutate(New_Stop = ifelse(Name %in% stop_17, 0, 1))
+table(bike_stop_19$New_Stop)
 
 ### 2019 Total Trips
 bike_rider_19 <- bike_rider_19_start %>%
@@ -230,7 +255,7 @@ bike_rider_19 <- bike_rider_19_start %>%
   left_join(., bike_stop, by = "Name") %>%
   mutate(Total_Docks = as.numeric(Total_Docks)) %>%
   mutate(Total_Docks = replace_na(Total_Docks,
-                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>%
+                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
   relocate(Total_Docks, .before = geometry)
 
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17", "tran_rider_19",
@@ -239,11 +264,46 @@ rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17", "tran_rider
 
 # Demographic Data
 
+acs_vars_17 <- c("B01003_001E", # Total population
+                 ) 
+
+acs_vars_19 <- c("B01003_001E", # Total population
+                 )
+## 2017
+acsTracts_2017 <- get_acs(geography = "tract",
+                             year = 2017, 
+                             variables = acs_vars_17,
+                             geometry = TRUE,
+                             state = "Massachusetts",
+                             output = "wide") %>%
+  st_transform(st_crs(tran_stop)) %>%
+  select(GEOID, NAME, all_of(acs_vars_17)) %>%
+  rename(total_pop = B01003_001E)
+
+## 2019
+acsTracts_2019 <- get_acs(geography = "tract",
+                             year = 2019, 
+                             variables = acs_vars_19,
+                             geometry = TRUE,
+                             state = "Massachusetts",
+                             output = "wide") %>%
+  st_transform(st_crs(tran_stop)) %>%
+  select(GEOID, NAME, all_of(acs_vars_19)) %>%
+  rename(total_pop = B01003_001E)
+
 
 # Other Data
 ## MBTA Boundary
 mbta_core <- mbta_core %>%
-  st_transform(st_crs(tran_stop))
+  st_transform(st_crs(tran_stop)) %>%
+  st_union() %>%
+  st_as_sf()
+
+
+ggplot() + 
+  geom_sf(data = mbta_core, aes(), color = "black") +
+  geom_sf(data = tran_line) +
+  geom_sf(data = tran_stop)
 ```
 
 

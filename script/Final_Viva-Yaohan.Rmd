@@ -295,7 +295,7 @@ acs_vars_19 <- c("B01003_001E", # Total population
 
 ## 2017
 acsTracts_2017 <- get_acs(geography = "tract",
-                             year = 2017, 
+                             year = 2017,
                              variables = acs_vars_17,
                              geometry = TRUE,
                              state = "Massachusetts",
@@ -306,7 +306,7 @@ acsTracts_2017 <- get_acs(geography = "tract",
 
 ## 2019
 acsTracts_2019 <- get_acs(geography = "tract",
-                             year = 2019, 
+                             year = 2019,
                              variables = acs_vars_19,
                              geometry = TRUE,
                              state = "Massachusetts",

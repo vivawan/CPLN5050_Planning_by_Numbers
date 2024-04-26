@@ -559,14 +559,14 @@ acs_variable_list.2019 <- load_variables(2019, # Year
 
 ```{r bike_map}
 # The map of  in 2017
-breaks_quantiles <- classIntervals(taxi_dat$taxi_trip_2017, n = 5, style = "quantile")
+breaks_quantiles <- classIntervals(tran_rider_17_total$, n = 5, style = "quantile")
 colors <- brewer.pal(n = 5, name = "Blues")
 labels <- paste0(formatC(breaks_quantiles$brks[-length(breaks_quantiles$brks)], format = "f", digits = 0, big.mark = ","), 
                  " - ", 
                  formatC(breaks_quantiles$brks[-1], format = "f", digits = 0, big.mark = ","))
 
-ggplot(taxi_dat) +
-  geom_sf(aes(fill = cut(taxi_trip_2017, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
+ggplot(tran_rider_17_total) +
+  geom_sf(aes(fill = cut(, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
   scale_fill_manual(values = colors,
                     labels = labels,
                     name = " (Quantile)") +
@@ -574,8 +574,8 @@ ggplot(taxi_dat) +
   theme_void() +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         legend.position = c(1, 0.2))+
-  geom_sf(data = union_district, fill = NA, color = "grey", inherit.aes = FALSE) +
-  geom_text(data = union_district, aes(x = lon, y = lat, label = district), size = 1.75,
+  geom_sf(data = , fill = NA, color = "grey", inherit.aes = FALSE) +
+  geom_text(data = , aes(x = lon, y = lat, label = district), size = 1.75,
             color = "black",check_overlap = TRUE, inherit.aes = FALSE)
 ```
 

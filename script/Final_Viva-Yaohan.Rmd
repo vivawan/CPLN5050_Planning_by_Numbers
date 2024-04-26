@@ -75,16 +75,14 @@ Blue Bikes Comprehensive Trip Histories: https://s3.amazonaws.com/hubway-data/in
 Bluebikes Stations: https://bluebikes.com/system-data
 
 3. Bus Data
-- Bus Stop
 MBTA Bus Routes and Stops: https://www.mass.gov/info-details/massgis-data-mbta-bus-routes-and-stops?_gl=1*1iy371g*_ga*MTQzMTUzMDg3Mi4xNzA4MTExODY2*_ga_MCLPEGW7WM*MTcxMzg4OTY1OC4xLjEuMTcxMzg4OTY4MS4wLjAuMA..#overview-
 
-4. Demographic Data
+4. MBTA Boundary
+MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=boundary
+
+5. Demographic Data
 https://www.bostonplans.org/3d-data-maps/resources
 https://data.census.gov/
-
-5. Other Data
-- MBTA Boundary
-MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=boundary
 
 6. Built Environment
 Smart Location Database: measure the built environment by census block group
@@ -584,5 +582,5 @@ acs_variable_list.2019 <- load_variables(2019, # Year
 ```
 
 
-# Next Steps
+# Next Step
 

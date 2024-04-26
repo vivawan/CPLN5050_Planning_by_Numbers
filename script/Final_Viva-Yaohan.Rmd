@@ -92,8 +92,10 @@ MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=bounda
 ## Transit Ridership
 tran_rider <- read_csv(here::here("data/final/Transit_Ridership.csv"))
 ## Transit Station
-tran_line <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_ARC.shp"))
-tran_stop <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_NODE.shp"))
+tran_line <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_ARC.shp")) %>%
+  st_transform(crs = 2249)
+tran_stop <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_NODE.shp")) %>%
+  st_transform(crs = 2249)
 
 
 # Bike Data
@@ -230,15 +232,13 @@ sum(duplicated(bike_rider_17))
 
 ### Start Trips
 bike_rider_17_start <- bike_rider_17 %>%
+  separate(starttime, into = date, time, sep = " ")
   group_by(`start station name`) %>%
   summarise(Start_Trip_17 = n()) %>%
   rename(Name = `start station name`)
 
 ### End Trips
-bike_rider_17_end <- bike_rider_17 %>%
-  group_by(`end station name`) %>%
-  summarise(End_Trip_17 = n()) %>%
-  rename(Name = `end station name`)
+
 
 ### 2017 Bike Stops
 sum(bike_rider_17_start$Name %in% bike_rider_17_end$Name)

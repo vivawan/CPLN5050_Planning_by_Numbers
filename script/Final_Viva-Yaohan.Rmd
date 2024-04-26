@@ -54,15 +54,15 @@ conflicts_prefer(sf::st_crs)
 - Transit Ridership
 MBTA Rail Ridership by Time Period, Season, Route/Line, and Stop: https://mbta-massdot.opendata.arcgis.com/search?tags=ridership
 The data is for Fall2019, Fall2018, and Fall2017. Since Fall2018 only has data for September, so we only use ridership data for Fall2019 and Fall2017.
-MBTA Gated Station Entries: https://mbta-massdot.opendata.arcgis.com/datasets/7859894afb5641ce91a2bb03599fdf5b/about
 
 - Transit Station
 MBTA Rapid Transit: https://www.mass.gov/info-details/massgis-data-mbta-rapid-transit#downloads-
 Name and location for each transit stop； Combined with ridership data.
 
-- Definition for "Fall" in MassDOT
-Important Work Restrictions for massDOT: https://www.mass.gov/doc/controls-guidelines-attachment-a-important-work-restrictions/download
+- Service Delivery Policy
+Definition for "Fall" in MassDOT: https://www.mass.gov/doc/controls-guidelines-attachment-a-important-work-restrictions/download
 The Fall season defined by MassDOT is from August.15 to November.1, so we use bike data for August, September and October.
+Definition for "Time Period" in MassDOT: https://cdn.mbta.com/sites/default/files/2021-09/service-delivery-policy-june-2021.pdf
 
 2. Bike Data
 - Bike Ridership
@@ -74,9 +74,6 @@ Blue Bikes Comprehensive Trip Histories: https://s3.amazonaws.com/hubway-data/in
 Bluebikes Stations: https://bluebikes.com/system-data
 
 3. Bus Data
-- Bus Ridership
-MBTA Bus Ridership by Trip, Season, Route/Line, and Stop: (Silver Line?) https://mbta-massdot.opendata.arcgis.com/datasets/fc95594660634a2fb1a7c6c550f13ef5_0/explore
-
 - Bus Stop
 MBTA Bus Routes and Stops: https://www.mass.gov/info-details/massgis-data-mbta-bus-routes-and-stops?_gl=1*1iy371g*_ga*MTQzMTUzMDg3Mi4xNzA4MTExODY2*_ga_MCLPEGW7WM*MTcxMzg4OTY1OC4xLjEuMTcxMzg4OTY4MS4wLjAuMA..#overview-
 
@@ -123,8 +120,6 @@ bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
 
 # Bus Data
-## Bus Ridership
-
 ## Bus Stop
 bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp"))
 
@@ -162,22 +157,70 @@ name_rider <- unique(tran_rider$stop_name)
 name_stop <- tran_stop$STATION
 not_in_station <- as.data.frame(setdiff(name_rider, name_stop))
 
-## Transit Station
-
 ## Transit Ridership
-tran_rider_17 <- tran_rider %>%
-  filter(season == "Fall 2017")
+tran_rider <- tran_rider %>%
+  mutate(time_period = paste0(day_type_name, sep = "_", time_period_name))
 
-tran_rider_19 <- tran_rider %>%
-  filter(season == "Fall 2019")
+tran_stop <- tran_stop %>%
+  filter(LINE != "SILVER") ## Silver Line is BRT
+
+### Transit Ridership by Time Period
+tran_rider_17_period <- tran_rider %>%
+  filter(season == "Fall 2017") %>%
+  group_by(stop_name, time_period) %>%
+  summarise(aver_ons = sum(average_ons),
+            aver_offs = sum(average_offs)) %>%
+  ungroup() %>%
+  mutate(total_rider_tran = aver_ons + aver_offs) %>%
+  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
+  na.omit() %>%
+  select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
+  rename(tran_stop = stop_name, terminus = TERMINUS) %>%
+  st_as_sf()
+
+tran_rider_19_period <- tran_rider %>%
+  filter(season == "Fall 2019") %>%
+  group_by(stop_name, time_period) %>%
+  summarise(aver_ons = sum(average_ons),
+            aver_offs = sum(average_offs)) %>%
+  ungroup() %>%
+  mutate(total_rider_tran = aver_ons + aver_offs) %>%
+  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
+  na.omit() %>%
+  select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
+  rename(tran_stop = stop_name, terminus = TERMINUS) %>%
+  st_as_sf()
+
+### Total Transit Ridership
+tran_rider_17_total <- tran_rider_17_period %>%
+  st_drop_geometry() %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_tran = sum(total_rider_tran)) %>%
+  ungroup() %>%
+  left_join(., tran_stop, by = c("tran_stop" = "STATION")) %>%
+  na.omit() %>%
+  select(-LINE, -ROUTE) %>%
+  rename(terminus = TERMINUS) %>%
+  st_as_sf()
+
+tran_rider_19_total <- tran_rider_19_period %>%
+  st_drop_geometry() %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_tran = sum(total_rider_tran)) %>%
+  ungroup() %>%
+  left_join(., tran_stop, by = c("tran_stop" = "STATION")) %>%
+  na.omit() %>%
+  select(-LINE, -ROUTE) %>%
+  rename(terminus = TERMINUS) %>%
+  st_as_sf()
 
 
 # Bike Data
 ## Bike Station
 colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
 bike_stop <- bike_stop[-1, ] %>%
-  select(Name = NAME,
-         Total_Docks = `Total Docks`)
+  select(name = NAME,
+         total_docks = `Total Docks`)
 
 ## Combine 2017
 bike_rider_17 <- bind_rows(bike_rider_17_aug, bike_rider_17_sep, bike_rider_17_oct)

@@ -366,22 +366,21 @@ mbta_core <- mbta_core %>%
 ```
 
 ## SLD data
+
 ```{r SLD subset}
-# stop buffer 1/4 mile = 1320 feet
-tran_stop <- st_transform(tran_stop, crs = 'EPSG:2249')
-tran_stop_buffer <- st_buffer(x = tran_stop, dist = 1320)
-
-sld_layers <- st_layers("/Users/Viva Wan/Documents/GitHub/Local/505PBN/SmartLocationDatabaseV3/SmartLocationDatabase.gdb")
-
+# load sld data
 sld <- st_read("/Users/Viva Wan/Documents/GitHub/Local/505PBN/SmartLocationDatabaseV3/SmartLocationDatabase.gdb")
 
-# subset 
+# subset to boston CBSA
 sld <- sld %>%
   filter(CBSA_Name == "Boston-Cambridge-Newton, MA-NH")%>%
   st_transform(crs = 'EPSG:2249')
 
+# subset to station area
+## stop buffer 1/4 mile = 1320 feet
+tran_stop <- st_transform(tran_stop, crs = 'EPSG:2249')
+tran_stop_buffer <- st_buffer(x = tran_stop, dist = 1320)
 sld <- sld[tran_stop_buffer,]
-
 
 # map
 tm_shape(sld) +
@@ -392,6 +391,17 @@ tm_shape(tran_stop) +
    tm_dots(col = "black", size = .1) +
 tm_layout(frame = FALSE)
 ```
+
+**Built Environment Variables**
+- Housing density 
+- Population density 
+- Employment density 
+- Employment mix
+- Street network connectivity 
+- Centrality
+
+
+
 
 ## Sociodemographic Data 
 ```{r}

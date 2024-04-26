@@ -88,6 +88,17 @@ https://data.census.gov/
 - MBTA Boundary
 MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=boundary
 
+6. Built Environment
+Smart Location Database: measure the built environment by census block group
+https://www.epa.gov/smartgrowth/smart-location-mapping
+Database document
+https://www.epa.gov/system/files/documents/2023-10/epa_sld_3.0_technicaldocumentationuserguide_may2021_0.pdf
+
+7. CRS
+NAD83 / Massachusetts Mainland (ftUS)
+https://epsg.io/2249
+
+
 ## Import Datasets
 
 ```{r load_data, message = FALSE, warning = FALSE}
@@ -116,19 +127,6 @@ bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
 ## Bus Stop
 bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp"))
-
-
-# Demographic Data
-## Load Census Tract Data
-census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overwrite = TRUE)
-
-acs_variable_list.2017 <- load_variables(2017, # Year
-                                         "acs5", # Five year ACS estimates
-                                         cache = TRUE)
-
-acs_variable_list.2019 <- load_variables(2019, # Year
-                                         "acs5", # Five year ACS estimates
-                                         cache = TRUE)
 
 
 # Other Data
@@ -324,5 +322,46 @@ mbta_core <- mbta_core %>%
   st_as_sf()
 ```
 
+## SLD data
+```{r SLD subset}
+# stop buffer 1/4 mile = 1320 feet
+tran_stop <- st_transform(tran_stop, crs = 'EPSG:2249')
+tran_stop_buffer <- st_buffer(x = tran_stop, dist = 1320)
 
+sld_layers <- st_layers("/Users/Viva Wan/Documents/GitHub/Local/505PBN/SmartLocationDatabaseV3/SmartLocationDatabase.gdb")
+
+sld <- st_read("/Users/Viva Wan/Documents/GitHub/Local/505PBN/SmartLocationDatabaseV3/SmartLocationDatabase.gdb")
+
+# subset 
+sld <- sld %>%
+  filter(CBSA_Name == "Boston-Cambridge-Newton, MA-NH")%>%
+  st_transform(crs = 'EPSG:2249')
+
+sld <- sld[tran_stop_buffer,]
+
+
+# map
+tm_shape(sld) +
+   tm_polygons(col = "gray70", border.col = "gray80") +
+  tm_shape(tran_stop_buffer) +
+   tm_polygons(col = 'pink', border.col = "red")+
+tm_shape(tran_stop) +
+   tm_dots(col = "black", size = .1) +
+tm_layout(frame = FALSE)
+```
+
+## Sociodemographic Data 
+```{r}
+# Demographic Data
+## Load Census Tract Data
+census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overwrite = TRUE)
+
+acs_variable_list.2017 <- load_variables(2017, # Year
+                                         "acs5", # Five year ACS estimates
+                                         cache = TRUE)
+
+acs_variable_list.2019 <- load_variables(2019, # Year
+                                         "acs5", # Five year ACS estimates
+                                         cache = TRUE)
+```
 

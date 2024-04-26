@@ -59,7 +59,7 @@ The data is for Fall2019, Fall2018, and Fall2017. Since Fall2018 only has data f
 MBTA Rapid Transit: https://www.mass.gov/info-details/massgis-data-mbta-rapid-transit#downloads-
 Name and location for each transit stop； Combined with ridership data.
 
-- 
+- Service Delivery Policy
 Definition for "Fall" in MassDOT: https://www.mass.gov/doc/controls-guidelines-attachment-a-important-work-restrictions/download
 The Fall season defined by MassDOT is from August.15 to November.1, so we use bike data for August, September and October.
 Definition for "Time Period" in MassDOT: https://cdn.mbta.com/sites/default/files/2021-09/service-delivery-policy-june-2021.pdf
@@ -193,8 +193,6 @@ tran_rider_17_total <- tran_rider_17_period %>%
   na.omit() %>%
   select(-LINE, -ROUTE) %>%
   rename(terminus = TERMINUS)
-
-
 
 
 # Bike Data

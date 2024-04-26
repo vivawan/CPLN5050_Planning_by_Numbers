@@ -48,6 +48,7 @@ conflicts_prefer(dplyr::recode)
 conflicts_prefer(sf::st_crs)
 ```
 
+
 # Data Preparation
 
 1. Transit Data
@@ -133,17 +134,20 @@ mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.
   st_transform(crs = 2249)
 ```
 
-## Data Wrangling
 
-```{r data_clean}
-# Other Data
+# Data Wrangling
+
 ## MBTA Boundary
+
+```{r boundary}
 mbta_core <- mbta_core %>%
   st_union() %>%
   st_as_sf()
+```
 
+## Transit Data
 
-# Transit Data
+```{r transit}
 ## Align Station Name between Two Datasets
 tran_rider <- tran_rider %>%
   mutate(stop_name = case_when(
@@ -224,9 +228,11 @@ tran_rider_19_total <- tran_rider_19_period %>%
   select(-LINE, -ROUTE) %>%
   rename(terminus = TERMINUS) %>%
   st_as_sf()
+```
 
+## 2017 Bike Data
 
-# Bike Data
+```{r bike_2017}
 ## Bike Station
 colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
 bike_stop <- bike_stop[-1, ] %>%
@@ -330,7 +336,11 @@ bike_rider_17_total <- bike_rider_17_period %>%
   mutate(total_docks = replace_na(total_docks,
                                   floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
   relocate(total_docks, .before = geometry)
+```
 
+## 2019 Bike Data
+
+```{r bike_2019}
 ## Combine 2019
 bike_rider_19 <- bind_rows(bike_rider_19_aug, bike_rider_19_sep, bike_rider_19_oct)
 sum(duplicated(bike_rider_19))
@@ -430,9 +440,11 @@ bike_rider_19_total <- bike_rider_19_period %>%
   mutate(total_docks = replace_na(total_docks,
                                   floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
   relocate(total_docks, .before = geometry)
+```
 
+## Bus Data
 
-# Bus Data
+```{r bus}
 ## Bus Stop
 bus_stop <- bus_stop %>%
   select(STOP_NAME) %>%
@@ -443,9 +455,11 @@ rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tra
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
                           "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
                           "bus_stop", "mbta_core")))
+```
 
+## ACS Data
 
-# Demographic Data
+```{r acs}
 ## Select Variables
 acs_vars_17 <- c("B01003_001E", # Total population
                  ) 
@@ -477,7 +491,8 @@ acsTracts_2019 <- get_acs(geography = "tract",
 ```
 
 ## SLD data
-```{r SLD subset}
+
+```{r SLD_subset}
 # stop buffer 1/4 mile = 1320 feet
 tran_stop <- st_transform(tran_stop, crs = 'EPSG:2249')
 tran_stop_buffer <- st_buffer(x = tran_stop, dist = 1320)
@@ -504,7 +519,8 @@ tm_shape(tran_stop) +
 tm_layout(frame = FALSE)
 ```
 
-## Sociodemographic Data 
+## Sociodemographic Data
+
 ```{r}
 # Demographic Data
 ## Load Census Tract Data
@@ -518,4 +534,55 @@ acs_variable_list.2019 <- load_variables(2019, # Year
                                          "acs5", # Five year ACS estimates
                                          cache = TRUE)
 ```
+
+
+# Data Visualization
+
+## Transit Data
+
+```{r tran_map}
+
+```
+
+## Bike Data
+
+```{r bike_map}
+
+```
+
+
+# Model Building
+
+## Final Dataset
+
+```{r final_data}
+
+```
+
+## Simple Regression
+
+```{r step1}
+
+```
+
+## Multiple Regression without Time Period
+
+```{r step2}
+
+```
+
+## Multiple Regression with Time Period
+
+```{r step3}
+
+```
+
+## Multiple Regression with Time Period (Interaction Term)
+
+```{r step4}
+
+```
+
+
+# Next Steps
 

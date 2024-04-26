@@ -253,13 +253,38 @@ bike_rider_17_start <- bike_rider_17 %>%
   mutate(time_period = paste(day_type_name, time_period_change, sep = "_")) %>%
   group_by(time_period, `start station name`) %>%
   summarise(Start_Trip_17 = n()) %>%
+  ungroup() %>%
   rename(bike_stop = `start station name`)
 
 ### End Trips
-
+bike_rider_17_end <- bike_rider_17 %>%
+  separate(col = stoptime, into = c("date", "time"), sep = " ") %>%
+  mutate(day_type_name = case_when(
+      wday(date, label = TRUE, week_start = 1) %in% c("Sat") ~ "saturday",
+      wday(date, label = TRUE, week_start = 1) %in% c("Sun") ~ "sunday",
+      TRUE ~ "weekday")) %>%
+  mutate(time_period_name = case_when(
+      time >= "03:00:00" & time < "06:00:00" ~ "VERY_EARLY_MORNING",
+      time >= "06:00:00" & time < "07:00:00" ~ "EARLY_AM",
+      time >= "07:00:00" & time < "09:00:00" ~ "AM_PEAK",
+      time >= "09:00:00" & time < "13:30:00" ~ "MIDDAY_BASE",
+      time >= "13:30:00" & time < "16:00:00" ~ "MIDDAY_SCHOOL",
+      time >= "16:00:00" & time < "18:30:00" ~ "PM_PEAK",
+      time >= "18:30:00" & time < "22:00:00" ~ "EVENING",
+      time >= "22:00:00" & time < "24:00:00" ~ "LATE_EVENING",
+      time >= "00:00:00" & time < "03:00:00" ~ "NIGHT",
+      TRUE ~ NA)) %>%
+  mutate(time_period_change = case_when(
+  day_type_name %in% c("saturday", "sunday") ~ "OFF_PEAK",
+  TRUE ~ time_period_name)) %>%
+  mutate(time_period = paste(day_type_name, time_period_change, sep = "_")) %>%
+  group_by(time_period, `end station name`) %>%
+  summarise(End_Trip_17 = n()) %>%
+  ungroup() %>%
+  rename(bike_stop = `end station name`)
 
 ### 2017 Bike Stops
-sum(bike_rider_17_start$Name %in% bike_rider_17_end$Name)
+sum(unique(bike_rider_17_start$bike_stop) %in% unique(bike_rider_17_end$bike_stop))
 bike_stop_17 <- bike_rider_17 %>%
   select(Name = `start station name`,
          Long = `start station longitude`,
@@ -269,38 +294,33 @@ bike_stop_17 <- bike_rider_17 %>%
   ungroup() %>%
   select(-n) %>%
   distinct(Name, .keep_all = TRUE) %>%
-  filter(Lat != 0 & Long != 0)
+  filter(Lat != 0 & Long != 0) %>%
+  rename(bike_stop = Name)
 
 ### 2017 Total Trips
-bike_rider_17 <- bike_rider_17_start %>%
-  left_join(., bike_rider_17_end, by = "Name") %>%
-  mutate(Bike_Rider_17 = Start_Trip_17 + End_Trip_17) %>%
-  left_join(bike_stop_17, ., by = "Name") %>%
-  filter(!is.na(Bike_Rider_17)) %>%
+bike_rider_17_period <- bike_rider_17_start %>%
+  left_join(., bike_rider_17_end, by = c("bike_stop", "time_period")) %>%
+  mutate(total_rider_bike = Start_Trip_17 + End_Trip_17) %>%
+  left_join(bike_stop_17, ., by = "bike_stop") %>%
+  na.omit() %>%
   st_as_sf(coords = c("Long", "Lat"), crs = 4326, agr = "constant") %>%
   st_transform(st_crs(tran_stop)) %>%
-  select(Name, Bike_Rider_17) %>%
-  left_join(., bike_stop, by = "Name") %>%
-  mutate(Total_Docks = as.numeric(Total_Docks)) %>%
-  mutate(Total_Docks = replace_na(Total_Docks,
-                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
-  relocate(Total_Docks, .before = geometry)
+  select(bike_stop, time_period, total_rider_bike) %>%
+  left_join(., bike_stop, by = "bike_stop") %>%
+  mutate(total_docks = as.numeric(total_docks)) %>%
+  mutate(total_docks = replace_na(total_docks,
+                                  floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
+  relocate(total_docks, .before = geometry)
 
 ## Combine 2019
 bike_rider_19 <- bind_rows(bike_rider_19_aug, bike_rider_19_sep, bike_rider_19_oct)
 sum(duplicated(bike_rider_19))
 
 ### Start Trips
-bike_rider_19_start <- bike_rider_19 %>%
-  group_by(`start station name`) %>%
-  summarise(Start_Trip_19 = n()) %>%
-  rename(Name = `start station name`)
+
 
 ### End Trips
-bike_rider_19_end <- bike_rider_19 %>%
-  group_by(`end station name`) %>%
-  summarise(End_Trip_19 = n()) %>%
-  rename(Name = `end station name`)
+
 
 ### 2019 Bike Stops
 sum(bike_rider_19_start$Name %in% bike_rider_19_end$Name)
@@ -319,28 +339,12 @@ bike_stop_19 <- bike_rider_19 %>%
 table(bike_stop_19$New_Stop)
 
 ### 2019 Total Trips
-bike_rider_19 <- bike_rider_19_start %>%
-  left_join(., bike_rider_19_end, by = "Name") %>%
-  mutate(Bike_Rider_19 = Start_Trip_19 + End_Trip_19) %>%
-  left_join(bike_stop_19, ., by = "Name") %>%
-  filter(!is.na(Bike_Rider_19)) %>%
-  st_as_sf(coords = c("Long", "Lat"), crs = 4326, agr = "constant") %>%
-  st_transform(st_crs(tran_stop)) %>%
-  select(Name, Bike_Rider_19, New_Stop) %>%
-  left_join(., bike_stop, by = "Name") %>%
-  mutate(Total_Docks = as.numeric(Total_Docks)) %>%
-  mutate(Total_Docks = replace_na(Total_Docks,
-                                  floor(mean(Total_Docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
-  relocate(Total_Docks, .before = geometry)
 
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17", "tran_rider_19",
-                          "bike_rider_17", "bike_rider_19", "bus_stop", "mbta_core")))
+
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", "")))
 
 
 # Bus Data
-## Bus Ridership
-
-
 ## Bus Stop
 bus_stop <- bus_stop %>%
   st_transform(st_crs(tran_stop))

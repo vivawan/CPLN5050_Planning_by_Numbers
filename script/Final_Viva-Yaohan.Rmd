@@ -127,6 +127,9 @@ bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
 # MBTA Boundary
 mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp")) %>%
   st_transform(crs = 2249)
+
+# Set Search Radius
+radius <- c(1320)
 ```
 
 
@@ -588,30 +591,68 @@ ggplot(taxi_dat) +
 ## Final Dataset
 
 ```{r final_data}
+## 2017 without Time Period
+final_17_total <- tran_rider_17_total %>%
+  st_buffer(radius) %>%
+  st_join(bike_rider_17_total) %>%
+  na.omit()
+
+## 2019 without Time Period
+final_19_total <- tran_rider_19_total %>%
+  st_buffer(radius) %>%
+  st_join(bike_rider_19_total) %>%
+  na.omit()
+
+## 2017 with Time Period
+
+
+## 2019 with Time Period
+
 
 ```
 
 ## Simple Regression
 
 ```{r step1}
+## 2017
+mod1 <- lm(total_rider_tran ~ total_rider_bike, data = final_17_total)
+summary(mod1)
 
+## 2019
+mod2 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total)
+summary(mod2)
 ```
 
 ## Multiple Regression without Time Period
 
 ```{r step2}
+## 2017
+
+
+## 2019
+
 
 ```
 
 ## Multiple Regression with Time Period
 
 ```{r step3}
+## 2017
+
+
+## 2019
+
 
 ```
 
 ## Multiple Regression with Time Period (Interaction Term)
 
 ```{r step4}
+## 2017
+
+
+## 2019
+
 
 ```
 

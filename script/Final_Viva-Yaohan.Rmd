@@ -74,9 +74,6 @@ Blue Bikes Comprehensive Trip Histories: https://s3.amazonaws.com/hubway-data/in
 Bluebikes Stations: https://bluebikes.com/system-data
 
 3. Bus Data
-- Bus Ridership
-MBTA Bus Ridership by Trip, Season, Route/Line, and Stop: (Silver Line?) https://mbta-massdot.opendata.arcgis.com/datasets/fc95594660634a2fb1a7c6c550f13ef5_0/explore
-
 - Bus Stop
 MBTA Bus Routes and Stops: https://www.mass.gov/info-details/massgis-data-mbta-bus-routes-and-stops?_gl=1*1iy371g*_ga*MTQzMTUzMDg3Mi4xNzA4MTExODY2*_ga_MCLPEGW7WM*MTcxMzg4OTY1OC4xLjEuMTcxMzg4OTY4MS4wLjAuMA..#overview-
 
@@ -176,11 +173,11 @@ tran_rider_17_period <- tran_rider %>%
   summarise(aver_ons = sum(average_ons),
             aver_offs = sum(average_offs)) %>%
   ungroup() %>%
-  mutate(total_rider = aver_ons + aver_offs) %>%
+  mutate(total_rider_tran = aver_ons + aver_offs) %>%
   left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
   na.omit() %>%
   select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
-  rename(terminus = TERMINUS) %>%
+  rename(tran_stop = stop_name, terminus = TERMINUS) %>%
   st_as_sf()
 
 tran_rider_19_period <- tran_rider %>%
@@ -189,20 +186,20 @@ tran_rider_19_period <- tran_rider %>%
   summarise(aver_ons = sum(average_ons),
             aver_offs = sum(average_offs)) %>%
   ungroup() %>%
-  mutate(total_rider = aver_ons + aver_offs) %>%
+  mutate(total_rider_tran = aver_ons + aver_offs) %>%
   left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
   na.omit() %>%
   select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
-  rename(terminus = TERMINUS) %>%
+  rename(tran_stop = stop_name, terminus = TERMINUS) %>%
   st_as_sf()
 
 ### Total Transit Ridership
 tran_rider_17_total <- tran_rider_17_period %>%
   st_drop_geometry() %>%
-  group_by(stop_name) %>%
-  summarise(total_rider = sum(total_rider)) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_tran = sum(total_rider_tran)) %>%
   ungroup() %>%
-  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
+  left_join(., tran_stop, by = c("tran_stop" = "STATION")) %>%
   na.omit() %>%
   select(-LINE, -ROUTE) %>%
   rename(terminus = TERMINUS) %>%
@@ -210,10 +207,10 @@ tran_rider_17_total <- tran_rider_17_period %>%
 
 tran_rider_19_total <- tran_rider_19_period %>%
   st_drop_geometry() %>%
-  group_by(stop_name) %>%
-  summarise(total_rider = sum(total_rider)) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_tran = sum(total_rider_tran)) %>%
   ungroup() %>%
-  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
+  left_join(., tran_stop, by = c("tran_stop" = "STATION")) %>%
   na.omit() %>%
   select(-LINE, -ROUTE) %>%
   rename(terminus = TERMINUS) %>%
@@ -224,8 +221,8 @@ tran_rider_19_total <- tran_rider_19_period %>%
 ## Bike Station
 colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
 bike_stop <- bike_stop[-1, ] %>%
-  select(Name = NAME,
-         Total_Docks = `Total Docks`)
+  select(name = NAME,
+         total_docks = `Total Docks`)
 
 ## Combine 2017
 bike_rider_17 <- bind_rows(bike_rider_17_aug, bike_rider_17_sep, bike_rider_17_oct)

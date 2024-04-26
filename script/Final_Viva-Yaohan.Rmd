@@ -120,28 +120,18 @@ bike_rider_19_oct <- read_csv(here::here("data/final/201910-bluebikes-tripdata.c
 bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
 
-# Bus Data
-## Bus Stop
+# Bus Stop
 bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
   st_transform(crs = 2249)
 
 
-# Other Data
-## MBTA Boundary
+# MBTA Boundary
 mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp")) %>%
   st_transform(crs = 2249)
 ```
 
 
 # Data Wrangling
-
-## MBTA Boundary
-
-```{r boundary}
-mbta_core <- mbta_core %>%
-  st_union() %>%
-  st_as_sf()
-```
 
 ## Transit Data
 
@@ -448,6 +438,14 @@ bus_stop <- bus_stop %>%
   select(STOP_NAME) %>%
   rename(bus_stop = STOP_NAME) %>%
   distinct(bus_stop, .keep_all = TRUE)
+```
+
+## MBTA Boundary
+
+```{r boundary}
+mbta_core <- mbta_core %>%
+  st_union() %>%
+  st_as_sf()
 
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",

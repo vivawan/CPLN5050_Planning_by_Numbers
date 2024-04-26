@@ -312,6 +312,16 @@ bike_rider_17_period <- bike_rider_17_start %>%
                                   floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
   relocate(total_docks, .before = geometry)
 
+bike_rider_17_total <- bike_rider_17_period %>%
+  group_by(bike_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike)) %>%
+  ungroup() %>%
+  left_join(., bike_stop, by = "bike_stop") %>%
+  mutate(total_docks = as.numeric(total_docks)) %>%
+  mutate(total_docks = replace_na(total_docks,
+                                  floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
+  relocate(total_docks, .before = geometry)
+
 ## Combine 2019
 bike_rider_19 <- bind_rows(bike_rider_19_aug, bike_rider_19_sep, bike_rider_19_oct)
 sum(duplicated(bike_rider_19))

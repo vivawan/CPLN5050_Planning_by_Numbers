@@ -598,6 +598,7 @@ final_17_total <- tran_rider_17_total %>%
   group_by(tran_stop) %>%
   summarise(total_rider_bike = sum(total_rider_bike)) %>%
   ungroup() %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
   left_join(.,tran_rider_17_total %>%
               st_drop_geometry() %>%
               select(tran_stop, total_rider_tran), by = c("tran_stop")) %>%
@@ -610,6 +611,7 @@ final_19_total <- tran_rider_19_total %>%
   group_by(tran_stop) %>%
   summarise(total_rider_bike = sum(total_rider_bike)) %>%
   ungroup() %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
   left_join(.,tran_rider_19_total %>%
               st_drop_geometry() %>%
               select(tran_stop, total_rider_tran), by = c("tran_stop")) %>%

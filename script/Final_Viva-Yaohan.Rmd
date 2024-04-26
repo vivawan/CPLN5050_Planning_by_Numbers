@@ -161,7 +161,7 @@ not_in_station <- as.data.frame(setdiff(name_rider, name_stop))
 
 ## Transit Ridership
 tran_rider <- tran_rider %>%
-  mutate(time_period = paste0(day_type_name, sep = "_", time_period_name))
+  mutate(time_period = paste(day_type_name, time_period_name, sep = "_"))
 
 tran_stop <- tran_stop %>%
   filter(LINE != "SILVER") ## Silver Line is BRT
@@ -222,7 +222,8 @@ tran_rider_19_total <- tran_rider_19_period %>%
 colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
 bike_stop <- bike_stop[-1, ] %>%
   select(name = NAME,
-         total_docks = `Total Docks`)
+         total_docks = `Total Docks`) %>%
+  rename(bike_stop = name)
 
 ## Combine 2017
 bike_rider_17 <- bind_rows(bike_rider_17_aug, bike_rider_17_sep, bike_rider_17_oct)
@@ -230,10 +231,29 @@ sum(duplicated(bike_rider_17))
 
 ### Start Trips
 bike_rider_17_start <- bike_rider_17 %>%
-  separate(starttime, into = date, time, sep = " ")
-  group_by(`start station name`) %>%
+  separate(col = starttime, into = c("date", "time"), sep = " ") %>%
+  mutate(day_type_name = case_when(
+      wday(date, label = TRUE, week_start = 1) %in% c("Sat") ~ "saturday",
+      wday(date, label = TRUE, week_start = 1) %in% c("Sun") ~ "sunday",
+      TRUE ~ "weekday")) %>%
+  mutate(time_period_name = case_when(
+      time >= "03:00:00" & time < "06:00:00" ~ "VERY_EARLY_MORNING",
+      time >= "06:00:00" & time < "07:00:00" ~ "EARLY_AM",
+      time >= "07:00:00" & time < "09:00:00" ~ "AM_PEAK",
+      time >= "09:00:00" & time < "13:30:00" ~ "MIDDAY_BASE",
+      time >= "13:30:00" & time < "16:00:00" ~ "MIDDAY_SCHOOL",
+      time >= "16:00:00" & time < "18:30:00" ~ "PM_PEAK",
+      time >= "18:30:00" & time < "22:00:00" ~ "EVENING",
+      time >= "22:00:00" & time < "24:00:00" ~ "LATE_EVENING",
+      time >= "00:00:00" & time < "03:00:00" ~ "NIGHT",
+      TRUE ~ NA)) %>%
+  mutate(time_period_change = case_when(
+  day_type_name %in% c("saturday", "sunday") ~ "OFF_PEAK",
+  TRUE ~ time_period_name)) %>%
+  mutate(time_period = paste(day_type_name, time_period_change, sep = "_")) %>%
+  group_by(time_period, `start station name`) %>%
   summarise(Start_Trip_17 = n()) %>%
-  rename(Name = `start station name`)
+  rename(bike_stop = `start station name`)
 
 ### End Trips
 

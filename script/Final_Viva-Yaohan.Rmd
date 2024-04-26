@@ -172,27 +172,52 @@ tran_stop <- tran_stop %>%
 ### Transit Ridership by Time Period
 tran_rider_17_period <- tran_rider %>%
   filter(season == "Fall 2017") %>%
-  group_by(time_period, stop_name) %>%
+  group_by(stop_name, time_period) %>%
   summarise(aver_ons = sum(average_ons),
-            aver_offs = sum(average_flow)) %>%
+            aver_offs = sum(average_offs)) %>%
   ungroup() %>%
   mutate(total_rider = aver_ons + aver_offs) %>%
-  select(-aver_ons, -aver_offs) %>%
   left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
   na.omit() %>%
-  select(-LINE, -ROUTE) %>%
+  select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
   rename(terminus = TERMINUS) %>%
-  relocate(time_period, .after = stop_name)
+  st_as_sf()
+
+tran_rider_19_period <- tran_rider %>%
+  filter(season == "Fall 2019") %>%
+  group_by(stop_name, time_period) %>%
+  summarise(aver_ons = sum(average_ons),
+            aver_offs = sum(average_offs)) %>%
+  ungroup() %>%
+  mutate(total_rider = aver_ons + aver_offs) %>%
+  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
+  na.omit() %>%
+  select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
+  rename(terminus = TERMINUS) %>%
+  st_as_sf()
 
 ### Total Transit Ridership
 tran_rider_17_total <- tran_rider_17_period %>%
   st_drop_geometry() %>%
   group_by(stop_name) %>%
   summarise(total_rider = sum(total_rider)) %>%
+  ungroup() %>%
   left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
   na.omit() %>%
   select(-LINE, -ROUTE) %>%
-  rename(terminus = TERMINUS)
+  rename(terminus = TERMINUS) %>%
+  st_as_sf()
+
+tran_rider_19_total <- tran_rider_19_period %>%
+  st_drop_geometry() %>%
+  group_by(stop_name) %>%
+  summarise(total_rider = sum(total_rider)) %>%
+  ungroup() %>%
+  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
+  na.omit() %>%
+  select(-LINE, -ROUTE) %>%
+  rename(terminus = TERMINUS) %>%
+  st_as_sf()
 
 
 # Bike Data

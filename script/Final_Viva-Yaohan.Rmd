@@ -452,7 +452,7 @@ mbta_core <- mbta_core %>%
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
                           "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core")))
+                          "bus_stop", "mbta_core", "radius")))
 ```
 
 ## ACS Data
@@ -595,12 +595,24 @@ ggplot(tran_rider_17_total) +
 final_17_total <- tran_rider_17_total %>%
   st_buffer(radius) %>%
   st_join(bike_rider_17_total) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike)) %>%
+  ungroup() %>%
+  left_join(.,tran_rider_17_total %>%
+              st_drop_geometry() %>%
+              select(tran_stop, total_rider_tran), by = c("tran_stop")) %>%
   na.omit()
 
 ## 2019 without Time Period
 final_19_total <- tran_rider_19_total %>%
   st_buffer(radius) %>%
   st_join(bike_rider_19_total) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike)) %>%
+  ungroup() %>%
+  left_join(.,tran_rider_19_total %>%
+              st_drop_geometry() %>%
+              select(tran_stop, total_rider_tran), by = c("tran_stop")) %>%
   na.omit()
 
 ## 2017 with Time Period

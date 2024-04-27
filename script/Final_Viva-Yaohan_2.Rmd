@@ -472,87 +472,6 @@ acs.2019.stop <- tran_stop %>%
   mutate(across(everything(), ~ replace_na(., 0)))
 ```
 
-
-# Data Visualization
-
-## correlation plot
-```{r dot cor, warning=FALSE, message=FALSE}
-# Select only numeric variables and remove rows with missing values
-numericVars <- final_19_total_acs %>%
-  select_if(is.numeric) %>%  # Select only numeric variables
-  na.omit()  # Remove rows with missing values
-
-## built environment
-numericVars1<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,total_docks,bus_stop,pop.tot,pop.den,
-         commuter.tot,hh.tot,hh.den, job, job.den)
-ggpairs(numericVars1)
-#-> 
-
-## socialecnomic
-numericVars2<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
-         commuter.tot,job.den, white.share, veh.ownership, medInc,pover.rate,labor.rate,employ.rate,tran.share)
-ggpairs(numericVars2)
-#-> 
-
-## results of initial variable selection
-numericVars3<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
-         commuter.tot,job.den, white.share, veh.ownership, medInc, employ.rate,tran.share
-         )
-ggpairs(numericVars3)
-
-## add log
-numericVars4 <- numericVars3%>%
-  mutate(log_rider_tran = log(total_rider_tran+1),
-         log_rider_bike = log(total_rider_bike+1),
-         log_job_den = log(job.den+1))%>%
-  select(-total_rider_tran, -total_rider_bike, -job.den)
-ggpairs(numericVars4)
-
-```
-
-
-## Transit Data
-
-```{r tran_map}
-
-```
-
-## Bike Data
-
-```{r bike_map}
-# The map of  in 2017
-breaks_quantiles <- classIntervals(tran_rider_17_total$, n = 5, style = "quantile")
-colors <- brewer.pal(n = 5, name = "Blues")
-labels <- paste0(formatC(breaks_quantiles$brks[-length(breaks_quantiles$brks)], format = "f", digits = 0, big.mark = ","), 
-                 " - ", 
-                 formatC(breaks_quantiles$brks[-1], format = "f", digits = 0, big.mark = ","))
-
-ggplot(tran_rider_17_total) +
-  geom_sf(aes(fill = cut(, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
-  scale_fill_manual(values = colors,
-                    labels = labels,
-                    name = " (Quantile)") +
-  labs(title = ", 2017") +
-  theme_void() +
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-        legend.position = c(1, 0.2))+
-  geom_sf(data = , fill = NA, color = "grey", inherit.aes = FALSE) +
-  geom_text(data = , aes(x = lon, y = lat, label = district), size = 1.75,
-            color = "black",check_overlap = TRUE, inherit.aes = FALSE)
-```
-
-## Sociodemographic Data
-
-```{r demographic_map}
-
-```
-
-
-# Model Building
-
 ## Final Dataset
 
 ```{r final_data}
@@ -627,6 +546,91 @@ final_19_total_acs <- final_19_total_acs %>%
   mutate(nearest_bike =
         nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))
 ```
+
+# Data Visualization
+
+
+
+
+## Transit Data
+
+```{r tran_map}
+
+```
+
+## Bike Data
+
+```{r bike_map}
+# The map of  in 2017
+breaks_quantiles <- classIntervals(tran_rider_17_total$, n = 5, style = "quantile")
+colors <- brewer.pal(n = 5, name = "Blues")
+labels <- paste0(formatC(breaks_quantiles$brks[-length(breaks_quantiles$brks)], format = "f", digits = 0, big.mark = ","), 
+                 " - ", 
+                 formatC(breaks_quantiles$brks[-1], format = "f", digits = 0, big.mark = ","))
+
+ggplot(tran_rider_17_total) +
+  geom_sf(aes(fill = cut(, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
+  scale_fill_manual(values = colors,
+                    labels = labels,
+                    name = " (Quantile)") +
+  labs(title = ", 2017") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        legend.position = c(1, 0.2))+
+  geom_sf(data = , fill = NA, color = "grey", inherit.aes = FALSE) +
+  geom_text(data = , aes(x = lon, y = lat, label = district), size = 1.75,
+            color = "black",check_overlap = TRUE, inherit.aes = FALSE)
+```
+
+## Sociodemographic Data
+
+```{r demographic_map}
+
+```
+
+
+# Model Building
+
+
+
+## correlation plot
+```{r dot cor, warning=FALSE, message=FALSE}
+# Select only numeric variables and remove rows with missing values
+numericVars <- final_19_total_acs %>%
+  select_if(is.numeric) %>%  # Select only numeric variables
+  na.omit()  # Remove rows with missing values
+
+## built environment
+numericVars1<-numericVars%>%
+  select(total_rider_tran, total_rider_bike,total_docks,bus_stop,pop.tot,pop.den,
+         commuter.tot,hh.tot,hh.den, job, job.den)
+ggpairs(numericVars1)
+#-> 
+
+## socialecnomic
+numericVars2<-numericVars%>%
+  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
+         commuter.tot,job.den, white.share, veh.ownership, medInc,pover.rate,labor.rate,employ.rate,tran.share)
+ggpairs(numericVars2)
+#-> 
+
+## results of initial variable selection
+numericVars3<-numericVars%>%
+  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
+         commuter.tot,job.den, white.share, veh.ownership, medInc, employ.rate,tran.share
+         )
+ggpairs(numericVars3)
+
+## add log
+numericVars4 <- numericVars3%>%
+  mutate(log_rider_tran = log(total_rider_tran+1),
+         log_rider_bike = log(total_rider_bike+1),
+         log_job_den = log(job.den+1))%>%
+  select(-total_rider_tran, -total_rider_bike, -job.den)
+ggpairs(numericVars4)
+
+```
+
 
 ## Simple Regression
 

@@ -725,9 +725,6 @@ ggpairs(numericVars4)
 
 ```
 
-
-
-
 ## Transit Data
 
 ```{r tran_map}

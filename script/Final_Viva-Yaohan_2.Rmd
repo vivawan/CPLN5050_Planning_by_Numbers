@@ -118,8 +118,7 @@ bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
   st_transform(crs = 2249)
 
 
-# Other Data
-## MBTA Boundary
+# MBTA Boundary
 mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp")) %>%
   st_transform(crs = 2249)
 
@@ -475,10 +474,9 @@ acs.2019.stop <- tran_stop %>%
 ## Final Dataset
 
 ```{r final_data}
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", 
-                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius",
-                          "acs.2019.stop")))
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_19_period",
+                          "tran_rider_19_total", "bike_rider_19_period", "bike_rider_19_total",
+                          "bus_stop", "mbta_core", "radius", "acs.2019.stop")))
 
 ## 2019 without Time Period
 final_19_total_bike <- tran_rider_19_total %>%
@@ -511,6 +509,11 @@ final_19_total_acs <- final_19_total_bike %>%
   na.omit() %>%
   st_as_sf()
 
+### add distance factor
+final_19_total_acs <- final_19_total_acs %>%
+  mutate(nearest_bike =
+        nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1)) %>%
+  st_drop_geometry()
 
 ## 2019 with Time Period
 final_19_period_bike <- tran_rider_19_total %>%
@@ -532,20 +535,21 @@ final_19_period_bus <- tran_rider_19_total %>%
   st_drop_geometry()
 
 final_19_period_acs <- final_19_period_bike %>%
+  left_join(tran_rider_19_period %>%
+              select(tran_stop, total_rider_tran, time_period, terminus), ., by = c("tran_stop", "time_period")) %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
   left_join(., final_19_period_bus, by = c("tran_stop")) %>%
   rename(bus_stop = n) %>%
   mutate(bus_stop = replace_na(bus_stop, 0)) %>%
-  left_join(.,tran_rider_19_period %>%
-              select(tran_stop, total_rider_tran, time_period, terminus), by = c("tran_stop", "time_period")) %>%
   left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
-  st_as_sf()
-
-# add distance factor
-final_19_total_acs <- final_19_total_acs %>%
-  mutate(nearest_bike =
-        nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))
+  st_drop_geometry() %>%
+  mutate(time_period_cat = factor(case_when(
+    time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
+    time_period %in% c("weekday_AM_PEAK", "weekday_PM_PEAK") ~ "weekday_peak",
+    TRUE ~ "weekday_off_peak")))
 ```
+
 
 # Data Visualization
 
@@ -654,11 +658,9 @@ summary(final_19_total_acs)
 
 
 ## 2019
-
-modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1)*time_period, data = final_19_period_acs)
+modb.1 <- lm(log(total_rider_tran + 1) ~ log(total_rider_bike + 1)*time_period_2, data = final_19_period_acs)
 summary(modb.1)
 vif(modb.1)
-
 ```
 
 

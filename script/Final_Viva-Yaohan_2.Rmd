@@ -202,6 +202,13 @@ tran_rider_19_total <- tran_rider_19_period %>%
 ## 2019 Bike Data
 
 ```{r bike_2019}
+## Bike Station
+colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
+bike_stop <- bike_stop[-1, ] %>%
+  select(name = NAME,
+         total_docks = `Total Docks`) %>%
+  rename(bike_stop = name)
+
 ## Combine 2019
 bike_rider_19 <- bind_rows(bike_rider_19_aug, bike_rider_19_sep, bike_rider_19_oct)
 sum(duplicated(bike_rider_19))
@@ -261,8 +268,6 @@ bike_rider_19_end <- bike_rider_19 %>%
   rename(bike_stop = `end station name`)
 
 ### 2019 Bike Stops
-sum(unique(bike_rider_19_start$bike_stop) %in% unique(bike_rider_19_end$bike_stop))
-stop_17 <- unique(bike_rider_17_total$bike_stop)
 bike_stop_19 <- bike_rider_19 %>%
   select(Name = `end station name`,
          Long = `end station longitude`,
@@ -273,9 +278,7 @@ bike_stop_19 <- bike_rider_19 %>%
   select(-n) %>%
   distinct(Name, .keep_all = TRUE) %>%
   filter(Lat != 0 & Long != 0) %>%
-  rename(bike_stop = Name) %>%
-  mutate(new_stop = ifelse(bike_stop %in% stop_17, 0, 1))
-table(bike_stop_19$new_stop)
+  rename(bike_stop = Name)
 
 ### 2019 Total Trips
 bike_rider_19_period <- bike_rider_19_start %>%
@@ -339,17 +342,6 @@ bus_stop <- bus_stop %>%
 - Employment rate
 
 ```{r LEHD}
-# LEHD data - 2017
-job.2017 <- grab_lodes(state = "ma", year = 2017, 
-                    lodes_type = "wac", # wac, Workplace Area Characteristic data, jobs are totaled by work Census Block
-                    job_type = "JT01", #primary jobs
-                    segment = "S000", #total jobs
-                    state_part = "main", #both worklace and residence in-state
-                    agg_geo = "bg",
-                    download_dir = file.path("data/raw"))%>%
-  select(w_bg,C000)%>%
-  rename(job = C000)
-
 # LEHD data - 2019
 job.2019<- grab_lodes(state = "ma", year = 2019, 
                     lodes_type = "wac", # wac, Workplace Area Characteristic data, jobs are totaled by work Census Block
@@ -369,7 +361,7 @@ census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overw
 readRenviron("~/.Renviron")
 
 # get variables
-acs_variable_list.2019 <- load_variables(201, "acs5")%>%
+acs_variable_list.2019 <- load_variables(2019, "acs5")%>%
   filter(geography == 'block group')
 
 acs.var <- c('B01001_001E',#total population
@@ -629,6 +621,11 @@ final_19_period_acs <- final_19_period_bike %>%
   left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
   st_as_sf()
+
+# add distance factor
+final_19_total_acs <- final_19_total_acs %>%
+  mutate(nearest_bike =
+        nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))
 ```
 
 ## Simple Regression
@@ -636,19 +633,10 @@ final_19_period_acs <- final_19_period_bike %>%
 ```{r step1}
 rm(list = setdiff(ls(), c("final_19_total_acs")))
 
-
 ## 2019
 modb.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
 summary(modb.0)
 ```
-
-```{r acs buffer}
-
-modb.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total_acs)
-summary(modb.0)
-```
-
-
 
 ## Multiple Regression without Time Period
 
@@ -660,9 +648,6 @@ hist(final_19_total_acs$)
 table(final_19_total_acs$)
 summary(final_19_total_acs)
 
-final_19_total_acs <- final_19_total_acs %>%
-  mutate(nearest_bike =
-        nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))
 
 ## 2019
 

@@ -162,9 +162,9 @@ tran_rider <- tran_rider %>%
     stop_name == "Summit Ave." ~ "Summit Avenue",
     TRUE ~ stop_name))
 
-name_rider <- unique(tran_rider$stop_name)
-name_stop <- tran_stop$STATION
-not_in_station <- as.data.frame(setdiff(name_rider, name_stop))
+name_rider <- unique(tran_rider$stop_name) #113
+name_stop <- tran_stop$STATION #170
+not_in_station <- as.data.frame(setdiff(name_rider, name_stop))#station in ridership but not in stop shapefile
 
 ## Transit Ridership
 tran_rider <- tran_rider %>%
@@ -293,7 +293,7 @@ bike_rider_17_end <- bike_rider_17 %>%
   rename(bike_stop = `end station name`)
 
 ### 2017 Bike Stops
-sum(unique(bike_rider_17_start$bike_stop) %in% unique(bike_rider_17_end$bike_stop))
+sum(unique(bike_rider_17_start$bike_stop) %in% unique(bike_rider_17_end$bike_stop))#199
 bike_stop_17 <- bike_rider_17 %>%
   select(Name = `start station name`,
          Long = `start station longitude`,
@@ -304,7 +304,7 @@ bike_stop_17 <- bike_rider_17 %>%
   select(-n) %>%
   distinct(Name, .keep_all = TRUE) %>%
   filter(Lat != 0 & Long != 0) %>%
-  rename(bike_stop = Name)
+  rename(bike_stop = Name)#196 (3 stations have no coordinates)
 
 ### 2017 Total Trips
 bike_rider_17_period <- bike_rider_17_start %>%

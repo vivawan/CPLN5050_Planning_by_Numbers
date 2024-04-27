@@ -57,7 +57,7 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 1. Transit Data
 - Transit Ridership
 MBTA Rail Ridership by Time Period, Season, Route/Line, and Stop: https://mbta-massdot.opendata.arcgis.com/search?tags=ridership
-The data is for Fall2019, Fall2018, and Fall2017. Since Fall2018 only has data for September, so we only use ridership data for Fall2019 and Fall2017.
+The data is for Fall2019, Fall2018, and Fall2017. We choose the latest one, Fall2019.
 
 - Transit Station
 MBTA Rapid Transit: https://www.mass.gov/info-details/massgis-data-mbta-rapid-transit#downloads-
@@ -71,7 +71,6 @@ Definition for "Time Period" in MassDOT: https://cdn.mbta.com/sites/default/file
 2. Bike Data
 - Bike Ridership
 Blue Bikes Comprehensive Trip Histories: https://s3.amazonaws.com/hubway-data/index.html
-2017: August, September, October
 2019: August, September, October
 
 - Bike Station
@@ -106,9 +105,6 @@ tran_stop <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_NODE.shp")) 
 
 # Bike Data
 ## Bike Ridership
-bike_rider_17_aug <- read_csv(here::here("data/final/201708-hubway-tripdata.csv"))
-bike_rider_17_sep <- read_csv(here::here("data/final/201709-hubway-tripdata.csv"))
-bike_rider_17_oct <- read_csv(here::here("data/final/201710-hubway-tripdata.csv"))
 bike_rider_19_aug <- read_csv(here::here("data/final/201908-bluebikes-tripdata.csv"))
 bike_rider_19_sep <- read_csv(here::here("data/final/201909-bluebikes-tripdata.csv"))
 bike_rider_19_oct <- read_csv(here::here("data/final/201910-bluebikes-tripdata.csv"))
@@ -177,19 +173,6 @@ tran_stop <- tran_stop %>%
   filter(LINE != "SILVER") ## Silver Line is BRT
 
 ### Transit Ridership by Time Period
-tran_rider_17_period <- tran_rider %>%
-  filter(season == "Fall 2017") %>%
-  group_by(stop_name, time_period) %>%
-  summarise(aver_ons = sum(average_ons),
-            aver_offs = sum(average_offs)) %>%
-  ungroup() %>%
-  mutate(total_rider_tran = aver_ons + aver_offs) %>%
-  left_join(., tran_stop, by = c("stop_name" = "STATION")) %>%
-  na.omit() %>%
-  select(-aver_ons, -aver_offs, -LINE, -ROUTE) %>%
-  rename(tran_stop = stop_name, terminus = TERMINUS) %>%
-  st_as_sf()
-
 tran_rider_19_period <- tran_rider %>%
   filter(season == "Fall 2019") %>%
   group_by(stop_name, time_period) %>%
@@ -204,17 +187,6 @@ tran_rider_19_period <- tran_rider %>%
   st_as_sf()
 
 ### Total Transit Ridership
-tran_rider_17_total <- tran_rider_17_period %>%
-  st_drop_geometry() %>%
-  group_by(tran_stop) %>%
-  summarise(total_rider_tran = sum(total_rider_tran)) %>%
-  ungroup() %>%
-  left_join(., tran_stop, by = c("tran_stop" = "STATION")) %>%
-  na.omit() %>%
-  select(-LINE, -ROUTE) %>%
-  rename(terminus = TERMINUS) %>%
-  st_as_sf()
-
 tran_rider_19_total <- tran_rider_19_period %>%
   st_drop_geometry() %>%
   group_by(tran_stop) %>%
@@ -225,114 +197,6 @@ tran_rider_19_total <- tran_rider_19_period %>%
   select(-LINE, -ROUTE) %>%
   rename(terminus = TERMINUS) %>%
   st_as_sf()
-```
-
-## 2017 Bike Data
-
-```{r bike_2017}
-## Bike Station
-colnames(bike_stop) <- as.character(unlist(bike_stop[1, ]))
-bike_stop <- bike_stop[-1, ] %>%
-  select(name = NAME,
-         total_docks = `Total Docks`) %>%
-  rename(bike_stop = name)
-
-## Combine 2017
-bike_rider_17 <- bind_rows(bike_rider_17_aug, bike_rider_17_sep, bike_rider_17_oct)
-sum(duplicated(bike_rider_17))
-
-### Start Trips
-bike_rider_17_start <- bike_rider_17 %>%
-  separate(col = starttime, into = c("date", "time"), sep = " ") %>%
-  mutate(day_type_name = case_when(
-      wday(date, label = TRUE, week_start = 1) %in% c("Sat") ~ "saturday",
-      wday(date, label = TRUE, week_start = 1) %in% c("Sun") ~ "sunday",
-      TRUE ~ "weekday")) %>%
-  mutate(time_period_name = case_when(
-      time >= "03:00:00" & time < "06:00:00" ~ "VERY_EARLY_MORNING",
-      time >= "06:00:00" & time < "07:00:00" ~ "EARLY_AM",
-      time >= "07:00:00" & time < "09:00:00" ~ "AM_PEAK",
-      time >= "09:00:00" & time < "13:30:00" ~ "MIDDAY_BASE",
-      time >= "13:30:00" & time < "16:00:00" ~ "MIDDAY_SCHOOL",
-      time >= "16:00:00" & time < "18:30:00" ~ "PM_PEAK",
-      time >= "18:30:00" & time < "22:00:00" ~ "EVENING",
-      time >= "22:00:00" & time < "24:00:00" ~ "LATE_EVENING",
-      time >= "00:00:00" & time < "03:00:00" ~ "NIGHT",
-      TRUE ~ NA)) %>%
-  mutate(time_period_change = case_when(
-  day_type_name %in% c("saturday", "sunday") ~ "OFF_PEAK",
-  TRUE ~ time_period_name)) %>%
-  mutate(time_period = paste(day_type_name, time_period_change, sep = "_")) %>%
-  group_by(time_period, `start station name`) %>%
-  summarise(Start_Trip_17 = n()) %>%
-  ungroup() %>%
-  rename(bike_stop = `start station name`)
-
-### End Trips
-bike_rider_17_end <- bike_rider_17 %>%
-  separate(col = stoptime, into = c("date", "time"), sep = " ") %>%
-  mutate(day_type_name = case_when(
-      wday(date, label = TRUE, week_start = 1) %in% c("Sat") ~ "saturday",
-      wday(date, label = TRUE, week_start = 1) %in% c("Sun") ~ "sunday",
-      TRUE ~ "weekday")) %>%
-  mutate(time_period_name = case_when(
-      time >= "03:00:00" & time < "06:00:00" ~ "VERY_EARLY_MORNING",
-      time >= "06:00:00" & time < "07:00:00" ~ "EARLY_AM",
-      time >= "07:00:00" & time < "09:00:00" ~ "AM_PEAK",
-      time >= "09:00:00" & time < "13:30:00" ~ "MIDDAY_BASE",
-      time >= "13:30:00" & time < "16:00:00" ~ "MIDDAY_SCHOOL",
-      time >= "16:00:00" & time < "18:30:00" ~ "PM_PEAK",
-      time >= "18:30:00" & time < "22:00:00" ~ "EVENING",
-      time >= "22:00:00" & time < "24:00:00" ~ "LATE_EVENING",
-      time >= "00:00:00" & time < "03:00:00" ~ "NIGHT",
-      TRUE ~ NA)) %>%
-  mutate(time_period_change = case_when(
-  day_type_name %in% c("saturday", "sunday") ~ "OFF_PEAK",
-  TRUE ~ time_period_name)) %>%
-  mutate(time_period = paste(day_type_name, time_period_change, sep = "_")) %>%
-  group_by(time_period, `end station name`) %>%
-  summarise(End_Trip_17 = n()) %>%
-  ungroup() %>%
-  rename(bike_stop = `end station name`)
-
-### 2017 Bike Stops
-sum(unique(bike_rider_17_start$bike_stop) %in% unique(bike_rider_17_end$bike_stop))#199
-bike_stop_17 <- bike_rider_17 %>%
-  select(Name = `start station name`,
-         Long = `start station longitude`,
-         Lat = `start station latitude`) %>%
-  group_by(Name, Long, Lat) %>%
-  tally() %>%
-  ungroup() %>%
-  select(-n) %>%
-  distinct(Name, .keep_all = TRUE) %>%
-  filter(Lat != 0 & Long != 0) %>%
-  rename(bike_stop = Name)#196 (3 stations have no coordinates)
-
-### 2017 Total Trips
-bike_rider_17_period <- bike_rider_17_start %>%
-  left_join(., bike_rider_17_end, by = c("bike_stop", "time_period")) %>%
-  mutate(total_rider_bike = Start_Trip_17 + End_Trip_17) %>%
-  left_join(bike_stop_17, ., by = "bike_stop") %>%
-  na.omit() %>%
-  st_as_sf(coords = c("Long", "Lat"), crs = 4326, agr = "constant") %>%
-  st_transform(st_crs(tran_stop)) %>%
-  select(bike_stop, time_period, total_rider_bike) %>%
-  left_join(., bike_stop, by = "bike_stop") %>%
-  mutate(total_docks = as.numeric(total_docks)) %>%
-  mutate(total_docks = replace_na(total_docks,
-                                  floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
-  relocate(total_docks, .before = geometry)
-
-bike_rider_17_total <- bike_rider_17_period %>%
-  group_by(bike_stop) %>%
-  summarise(total_rider_bike = sum(total_rider_bike)) %>%
-  ungroup() %>%
-  left_join(., bike_stop, by = "bike_stop") %>%
-  mutate(total_docks = as.numeric(total_docks)) %>%
-  mutate(total_docks = replace_na(total_docks,
-                                  floor(mean(total_docks, na.rm = TRUE)))) %>% # Use mean to replace NA, can also use 0
-  relocate(total_docks, .before = geometry)
 ```
 
 ## 2019 Bike Data

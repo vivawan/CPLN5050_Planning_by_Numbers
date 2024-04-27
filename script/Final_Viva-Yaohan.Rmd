@@ -80,15 +80,9 @@ MBTA Bus Routes and Stops: https://www.mass.gov/info-details/massgis-data-mbta-b
 4. MBTA Boundary
 MBTA Core Service Area: https://mbta-massdot.opendata.arcgis.com/search?q=boundary
 
-5. Demographic Data
-https://www.bostonplans.org/3d-data-maps/resources
+5. LEHD and ACS Data
+https://lehd.ces.census.gov/data/
 https://data.census.gov/
-
-6. Built Environment
-Smart Location Database: measure the built environment by census block group
-https://www.epa.gov/smartgrowth/smart-location-mapping
-Database document
-https://www.epa.gov/system/files/documents/2023-10/epa_sld_3.0_technicaldocumentationuserguide_may2021_0.pdf
 
 7. CRS
 NAD83 / Massachusetts Mainland (ftUS)
@@ -457,7 +451,30 @@ rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tra
                           "bus_stop", "mbta_core", "radius")))
 ```
 
-## LEHD data
+## LEHD and ACS data
+
+**Built Environment Variables**
+- Total population 
+- Population density 
+- Total Commuting Workers
+- Total Occupied House Unit 
+- Housing density 
+- Total Employment
+- Employment density
+
+**Socioeconomic Variables**
+- non-white share
+- commute in vehicles share
+- commute in bus share
+- commute by subway share
+- commute by rail share
+- commute by trolley share
+- commute by bike share
+- vehicle ownership for workers
+- household median income
+- poverty rate
+- labor force participation rate
+- employment rate
 
 ```{r LEHD}
 # LEHD data - 2017
@@ -482,29 +499,7 @@ job.2019<- grab_lodes(state = "ma", year = 2019,
   select(w_bg,C000)%>%
   rename(job = C000)
 ```
-## ACS Data
 
-**Built Environment Variables**
-- Total population 
-- Population density 
-- Total Commuting Workers
-- Total Occupied House Unit 
-- Housing density 
-- Total Employment
-- Employment density
-
-- non-white share
-- commute in vehicles share
-- commute in bus share
-- commute by subway share
-- commute by rail share
-- commute by trolley share
-- commute by bike share
-- vehicle ownership for workers
-- household median income
-- poverty rate
-- labor force participation rate
-- employment rate
 
 ```{r acs.var}
 census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overwrite = TRUE)

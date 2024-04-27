@@ -926,31 +926,32 @@ rm(list = setdiff(ls(), c("final_17_total_acs.dot", "final_17_total_acs.buffer",
                           "final_19_total_acs.dot", "final_19_total_acs.buffer")))
 
 ## 2017
-mod1 <- lm(total_rider_tran ~ total_rider_bike, data = final_17_total_acs.dot)
-summary(mod1)
+moda.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_17_total_acs.dot)
+summary(moda.0)
 
 ## 2019
-mod2 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total_acs.dot)
-summary(mod2)
+modb.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total_acs.dot)
+summary(modb.0)
 ```
 
 ## Multiple Regression without Time Period
 
 ```{r step2}
 ## 2017
-mod3 <- lm(total_rider_tran ~ .-tran_stop, data = final_17_total_acs.dot)
-summary(mod3)
+moda.1 <- lm(total_rider_tran ~ .-tran_stop, data = final_17_total_acs.dot)
+summary(moda.1)
 
-mod4 <- lm(total_rider_tran ~ .-tran_stop, data = final_17_total_acs.buffer)
-summary(mod4)
+moda.2 <- lm(total_rider_tran ~ .-tran_stop, data = final_17_total_acs.buffer)
+summary(moda.2)
 
 ## 2019
-mod5 <- lm(total_rider_tran ~ .-tran_stop, data = final_19_total_acs.dot)
-summary(mod5)
-vif(mod5)
+modb.1 <- lm(total_rider_tran ~ .-tran_stop, data = final_19_total_acs.dot)
+summary(modb.1)
+vif(modb.1)
 
-mod6 <- lm(total_rider_tran ~ .-tran_stop, data = final_19_total_acs.buffer)
-summary(mod6)
+modb.2 <- lm(total_rider_tran ~ .-tran_stop, data = final_19_total_acs.buffer)
+summary(modb.2)
+vif(modb.2)
 ```
 
 ## Multiple Regression with Time Period

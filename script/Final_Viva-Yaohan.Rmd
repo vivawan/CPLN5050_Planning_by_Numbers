@@ -94,7 +94,6 @@ https://www.epa.gov/system/files/documents/2023-10/epa_sld_3.0_technicaldocument
 NAD83 / Massachusetts Mainland (ftUS)
 https://epsg.io/2249
 
-
 ## Import Datasets
 
 ```{r load_data, message = FALSE, warning = FALSE}
@@ -130,6 +129,9 @@ bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
 ## MBTA Boundary
 mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp")) %>%
   st_transform(crs = 2249)
+
+# Set Search Radius
+radius <- c(1320)
 ```
 
 
@@ -452,7 +454,7 @@ bus_stop <- bus_stop %>%
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
                           "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core")))
+                          "bus_stop", "mbta_core", "radius")))
 ```
 
 ## LEHD data
@@ -707,14 +709,14 @@ tm_layout(frame = FALSE)
 
 ```{r bike_map}
 # The map of  in 2017
-breaks_quantiles <- classIntervals(taxi_dat$taxi_trip_2017, n = 5, style = "quantile")
+breaks_quantiles <- classIntervals(tran_rider_17_total$, n = 5, style = "quantile")
 colors <- brewer.pal(n = 5, name = "Blues")
 labels <- paste0(formatC(breaks_quantiles$brks[-length(breaks_quantiles$brks)], format = "f", digits = 0, big.mark = ","), 
                  " - ", 
                  formatC(breaks_quantiles$brks[-1], format = "f", digits = 0, big.mark = ","))
 
-ggplot(taxi_dat) +
-  geom_sf(aes(fill = cut(taxi_trip_2017, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
+ggplot(tran_rider_17_total) +
+  geom_sf(aes(fill = cut(, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
   scale_fill_manual(values = colors,
                     labels = labels,
                     name = " (Quantile)") +
@@ -722,8 +724,8 @@ ggplot(taxi_dat) +
   theme_void() +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"),
         legend.position = c(1, 0.2))+
-  geom_sf(data = union_district, fill = NA, color = "grey", inherit.aes = FALSE) +
-  geom_text(data = union_district, aes(x = lon, y = lat, label = district), size = 1.75,
+  geom_sf(data = , fill = NA, color = "grey", inherit.aes = FALSE) +
+  geom_text(data = , aes(x = lon, y = lat, label = district), size = 1.75,
             color = "black",check_overlap = TRUE, inherit.aes = FALSE)
 ```
 
@@ -739,30 +741,82 @@ ggplot(taxi_dat) +
 ## Final Dataset
 
 ```{r final_data}
+## 2017 without Time Period
+final_17_total <- tran_rider_17_total %>%
+  st_buffer(radius) %>%
+  st_join(bike_rider_17_total) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike)) %>%
+  ungroup() %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
+  left_join(.,tran_rider_17_total %>%
+              st_drop_geometry() %>%
+              select(tran_stop, total_rider_tran), by = c("tran_stop")) %>%
+  na.omit()
+
+## 2019 without Time Period
+final_19_total <- tran_rider_19_total %>%
+  st_buffer(radius) %>%
+  st_join(bike_rider_19_total) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike)) %>%
+  ungroup() %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
+  left_join(.,tran_rider_19_total %>%
+              st_drop_geometry() %>%
+              select(tran_stop, total_rider_tran), by = c("tran_stop")) %>%
+  na.omit()
+
+## 2017 with Time Period
+
+
+## 2019 with Time Period
+
 
 ```
 
 ## Simple Regression
 
 ```{r step1}
+## 2017
+mod1 <- lm(total_rider_tran ~ total_rider_bike, data = final_17_total)
+summary(mod1)
 
+## 2019
+mod2 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total)
+summary(mod2)
 ```
 
 ## Multiple Regression without Time Period
 
 ```{r step2}
+## 2017
+
+
+## 2019
+
 
 ```
 
 ## Multiple Regression with Time Period
 
 ```{r step3}
+## 2017
+
+
+## 2019
+
 
 ```
 
 ## Multiple Regression with Time Period (Interaction Term)
 
 ```{r step4}
+## 2017
+
+
+## 2019
+
 
 ```
 

@@ -370,7 +370,6 @@ acs.var <- c('B01001_001E',#total population
              #-> commute mode share
              'B08301_001E',#Workers 16 years and over
              'B08301_002E',#Car, truck, or van
-             'B08301_011E',#Bus
              'B08301_012E',#Subway or elevated rail
              'B08301_013E',#Long-distance train or commuter rail
              'B08301_014E',#Streetcar or trolley car
@@ -384,9 +383,6 @@ acs.var <- c('B01001_001E',#total population
              'B19013_001E',#median income for household
              #-> poverty rate
              'B17017_002E',#Income in the past 12 months below poverty level
-              #-> labor force participation rate
-             'B23025_001E',#Population 16 years and over
-             'B23025_002E',#In labor force
              #-> employment rate
              'B23025_003E',#Civilian labor force
              'B23025_004E')#population employed
@@ -411,7 +407,6 @@ acs.2019 <- get_acs(geography = "block group",
          
          com.tot = B08301_001E, 
          com.car = B08301_002E, 
-         com.bus = B08301_011E, 
          com.sub = B08301_012E, 
          com.rail = B08301_013E, 
          com.trolley = B08301_014E, 
@@ -425,9 +420,6 @@ acs.2019 <- get_acs(geography = "block group",
          medInc = B19013_001E,
         
          hh.pover = B17017_002E,
-       
-         pop.16 = B23025_001E, 
-         pop.labor = B23025_002E, 
         
          pop.civil = B23025_003E,
          pop.emp = B23025_004E)%>%
@@ -447,15 +439,10 @@ acs.2019.stop <- tran_stop %>%
          commuter.tot = com.tot-com.home,
          white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
          car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
-         bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
-         sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
-         rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
-         tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
          bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
          tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
          veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
          pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
-         labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
          employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
          job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
   select(STATION,
@@ -463,10 +450,9 @@ acs.2019.stop <- tran_stop %>%
          hh.tot,hh.den,
          job,job.den,
          white.share,
-         car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
+         car.share,bike.share,tran.share,
          veh.ownership,
-         medInc, pover.rate,
-         labor.rate,employ.rate)%>%
+         medInc, pover.rate,employ.rate)%>%
   rename(tran_stop = STATION) %>%
   st_drop_geometry()%>%
   mutate(across(everything(), ~ replace_na(., 0)))
@@ -544,7 +530,8 @@ final_19_period_acs <- final_19_period_bike %>%
 # add distance factor
 final_19_total_acs <- final_19_total_acs %>%
   mutate(nearest_bike =
-        nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))
+        nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))%>%
+  st_drop_geometry()
 ```
 
 # Data Visualization
@@ -591,74 +578,77 @@ ggplot(tran_rider_17_total) +
 
 # Model Building
 
-
-
-## correlation plot
-```{r dot cor, warning=FALSE, message=FALSE}
-# Select only numeric variables and remove rows with missing values
-numericVars <- final_19_total_acs %>%
-  select_if(is.numeric) %>%  # Select only numeric variables
-  na.omit()  # Remove rows with missing values
-
-## built environment
-numericVars1<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,total_docks,bus_stop,pop.tot,pop.den,
-         commuter.tot,hh.tot,hh.den, job, job.den)
-ggpairs(numericVars1)
-#-> 
-
-## socialecnomic
-numericVars2<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
-         commuter.tot,job.den, white.share, veh.ownership, medInc,pover.rate,labor.rate,employ.rate,tran.share)
-ggpairs(numericVars2)
-#-> 
-
-## results of initial variable selection
-numericVars3<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
-         commuter.tot,job.den, white.share, veh.ownership, medInc, employ.rate,tran.share
-         )
-ggpairs(numericVars3)
-
-## add log
-numericVars4 <- numericVars3%>%
-  mutate(log_rider_tran = log(total_rider_tran+1),
-         log_rider_bike = log(total_rider_bike+1),
-         log_job_den = log(job.den+1))%>%
-  select(-total_rider_tran, -total_rider_bike, -job.den)
-ggpairs(numericVars4)
-
-```
-
-
 ## Simple Regression
 
 ```{r step1}
 rm(list = setdiff(ls(), c("final_19_total_acs")))
 
 ## 2019
-modb.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
-summary(modb.0)
+mod.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
+summary(mod.0)
 ```
 
 ## Multiple Regression without Time Period
 
+## correlation plot
+```{r dot cor, warning=FALSE, message=FALSE}
+# Select only numeric variables and remove rows with missing values
+numericVars <- final_19_total_acs %>%
+  st_drop_geometry()%>%
+  select_if(is.numeric) %>%  # Select only numeric variables
+  na.omit()%>%  # Remove rows with missing values
+  relocate(total_rider_tran, .before = total_rider_bike)
+ggpairs(numericVars)
+
+summary(final_19_total_acs)
+
+# add log
+numericVars.log <- numericVars%>%
+  mutate(log.total_rider_tran = log(total_rider_tran+1),
+         log.total_rider_bike = log(total_rider_bike+1),
+         log.bike.share = log(bike.share+1),
+         log.job = log(job+1),
+         log.job.den = log(job.den+1),
+         log.nearest_bike = log(nearest_bike))%>%
+  select(-total_rider_tran, -total_rider_bike, -job, -job.den, -nearest_bike, -bike.share)%>%
+  relocate(log.total_rider_tran, .before = total_docks)
+ggpairs(numericVars.log)
+
+colnames(numericVars.log)
+```
+
 Initial Variable Selection:
-total_rider_bike, bus_stop, pop.den, commuter.tot, job.den, white.share, veh.ownership, medInc, employ.rate, tran.share
+"log.total_rider_tran" "bus_stop"             "pop.den"             
+"commuter.tot"         "white.share"       
+"tran.share"           "veh.ownership"        "medInc"                   
+"employ.rate"          "log.total_rider_bike" "log.bike.share"           "log.job.den"           
 
 ```{r step2}
 hist(final_19_total_acs$)
 table(final_19_total_acs$)
 summary(final_19_total_acs)
 
-
+summary(final_19_total_acs)
 ## 2019
+mod.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + medInc + employ.rate, data = final_19_total_acs)
+summary(mod.1)
+vif(mod.1)
 
-modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1)*time_period, data = final_19_period_acs)
-summary(modb.1)
-vif(modb.1)
+## delete variable from the one with the largest p-value
+mod.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + medInc, data = final_19_total_acs)
+summary(mod.2)
 
+mod.3 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + medInc, data = final_19_total_acs)
+summary(mod.3)
+
+mod.4 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share + medInc, data = final_19_total_acs)
+summary(mod.4)
+
+mod.5 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share, data = final_19_total_acs)
+summary(mod.5)
+
+mod.6 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_total_acs)
+summary(mod.6)
 ```
 
 
@@ -666,20 +656,16 @@ vif(modb.1)
 ## Multiple Regression with Time Period
 
 ```{r step3}
-## 2017
-
-
 ## 2019
-
+modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1)*time_period, data = final_19_period_acs)
+summary(modb.1)
+vif(modb.1)
 
 ```
 
 ## Multiple Regression with Time Period (Interaction Term)
 
 ```{r step4}
-## 2017
-
-
 ## 2019
 
 

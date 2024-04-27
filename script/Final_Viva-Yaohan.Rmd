@@ -623,8 +623,7 @@ acs.2019 <- get_acs(geography = "block group",
 ### 2017 ACS Join 
 
 ```{r acs-join-2017}
-## 2017
-# value
+## 2017 - value
 acs.2017.stop.dot <- tran_stop %>%
   st_join(acs.2017)%>%
   mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
@@ -643,7 +642,7 @@ acs.2017.stop.dot <- tran_stop %>%
          labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
          employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
          job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  select(STATION,GEOID,
+  select(STATION,
          pop.tot,pop.den,commuter.tot,
          hh.tot,hh.den,
          job,job.den,
@@ -651,7 +650,10 @@ acs.2017.stop.dot <- tran_stop %>%
          car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
          veh.ownership,
          medInc, pover.rate,
-         labor.rate,employ.rate)
+         labor.rate,employ.rate)%>%
+  rename(tran_stop = STATION) %>%
+  st_drop_geometry()%>%
+  mutate(across(everything(), ~ replace_na(., 0)))
 
 # buffer - average value 
 columns_to_sum <- setdiff(names(acs.2017), c("GEOID", "geometry"))
@@ -690,22 +692,16 @@ acs.2017.stop.buffer <- tran_stop %>%
          ave.car.share,ave.bus.share,ave.sub.share,ave.rail.share,ave.tro.share,ave.bike.share,ave.tran.share,
          ave.veh.ownership,
          ave.pover.rate,
-         ave.labor.rate,ave.employ.rate)
-  
-acs.2017.stop <- acs.2017.stop.dot %>%
-  st_drop_geometry()%>%
-  select(-GEOID)%>%
-  left_join(acs.2017.stop.buffer, by = 'STATION')%>%
-  st_drop_geometry()%>%
+         ave.labor.rate,ave.employ.rate)%>%
   rename(tran_stop = STATION) %>%
-  select(-geometry)
+  st_drop_geometry()%>%
+  mutate(across(everything(), ~ replace_na(., 0)))
 ```
 
 ### 2019 ACS Join
 
 ```{r acs-join-2019}
-## 2019
-# value
+## 2019 - value
 acs.2019.stop.dot <- tran_stop %>%
   st_join(acs.2019)%>%
   mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
@@ -724,7 +720,7 @@ acs.2019.stop.dot <- tran_stop %>%
          labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
          employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
          job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  select(STATION,GEOID,
+  select(STATION,
          pop.tot,pop.den,commuter.tot,
          hh.tot,hh.den,
          job,job.den,
@@ -732,10 +728,14 @@ acs.2019.stop.dot <- tran_stop %>%
          car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
          veh.ownership,
          medInc, pover.rate,
-         labor.rate,employ.rate)
+         labor.rate,employ.rate)%>%
+  rename(tran_stop = STATION) %>%
+  st_drop_geometry()%>%
+  mutate(across(everything(), ~ replace_na(., 0)))
 
 # buffer- average value 
 columns_to_sum <- setdiff(names(acs.2019), c("GEOID", "geometry"))
+
 acs.2019.stop.buffer <- tran_stop %>%
   st_buffer(radius) %>%
   st_join(acs.2019) %>%
@@ -771,15 +771,10 @@ acs.2019.stop.buffer <- tran_stop %>%
          ave.car.share,ave.bus.share,ave.sub.share,ave.rail.share,ave.tro.share,ave.bike.share,ave.tran.share,
          ave.veh.ownership,
          ave.pover.rate,
-         ave.labor.rate,ave.employ.rate)
-  
-acs.2019.stop <- acs.2019.stop.dot %>%
-  st_drop_geometry()%>%
-  select(-GEOID)%>%
-  left_join(acs.2019.stop.buffer, by = 'STATION')%>%
-  st_drop_geometry()%>%
+         ave.labor.rate,ave.employ.rate)%>%
   rename(tran_stop = STATION) %>%
-  select(-geometry)
+  st_drop_geometry()%>%
+  mutate(across(everything(), ~ replace_na(., 0)))
 ```
 
 
@@ -830,7 +825,9 @@ ggplot(tran_rider_17_total) +
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
                           "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius", "acs.2017.stop", "acs.2019.stop")))
+                          "bus_stop", "mbta_core", "radius", 
+                          "acs.2017.stop.dot","acs.2017.stop.buffer",
+                          "acs.2019.stop.dot","acs.2019.stop.buffer")))
 
 ## 2017 without Time Period
 final_17_total <- tran_rider_17_total %>%

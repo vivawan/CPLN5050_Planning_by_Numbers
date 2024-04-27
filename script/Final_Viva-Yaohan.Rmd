@@ -465,7 +465,7 @@ bus_stop <- bus_stop %>%
 - commute by rail share
 - commute by trolley share
 - commute by bike share
-- vehicle ownership for workers
+- vehicle ownership for household
 - household median income
 - poverty rate
 - labor force participation rate
@@ -653,7 +653,7 @@ acs.2017.stop.dot <- tran_stop %>%
          medInc, pover.rate,
          labor.rate,employ.rate)
 
-# buffer- average value 
+# buffer - average value 
 columns_to_sum <- setdiff(names(acs.2017), c("GEOID", "geometry"))
 acs.2017.stop.buffer <- tran_stop %>%
   st_buffer(radius) %>%
@@ -695,7 +695,9 @@ acs.2017.stop.buffer <- tran_stop %>%
 acs.2017.stop <- acs.2017.stop.dot %>%
   st_drop_geometry()%>%
   select(-GEOID)%>%
-  left_join(acs.2017.stop.buffer, by = 'STATION')
+  left_join(acs.2017.stop.buffer, by = 'STATION')%>%
+  st_drop_geometry()%>%
+  rename(tran_stop = STATION)
 
 ```
 
@@ -774,12 +776,16 @@ acs.2019.stop.buffer <- tran_stop %>%
 acs.2019.stop <- acs.2019.stop.dot %>%
   st_drop_geometry()%>%
   select(-GEOID)%>%
-  left_join(acs.2019.stop.buffer, by = 'STATION')
+  left_join(acs.2019.stop.buffer, by = 'STATION')%>%
+  st_drop_geometry()%>%
+  rename(tran_stop = STATION)
 
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
                           "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
                           "bus_stop", "mbta_core", "radius", "acs.2017.stop", "acs.2019.stop")))
+
+
 ```
 
 

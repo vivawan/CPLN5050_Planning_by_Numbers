@@ -825,12 +825,12 @@ ggplot(tran_rider_17_total) +
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
                           "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
                           "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius", 
+                          "bus_stop", "mbta_core", "radius",
                           "acs.2017.stop.dot","acs.2017.stop.buffer",
                           "acs.2019.stop.dot","acs.2019.stop.buffer")))
 
 ## 2017 without Time Period
-final_17_total <- tran_rider_17_total %>%
+final_17_total_bike <- tran_rider_17_total %>%
   st_buffer(radius) %>%
   st_join(bike_rider_17_total) %>%
   mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
@@ -839,14 +839,77 @@ final_17_total <- tran_rider_17_total %>%
   summarise(total_rider_bike = sum(total_rider_bike),
             total_docks = sum(total_docks)) %>%
   ungroup() %>%
+  st_drop_geometry()
+  
+final_17_total_bus <- tran_rider_17_total %>%
+  st_buffer(radius) %>%
+  st_join(bus_stop) %>%
+  na.omit() %>%
+  group_by(tran_stop) %>%
+  tally() %>%
+  ungroup() %>%
+  st_drop_geometry()
+  
+final_17_total_acs.dot <- final_17_total_bike %>%
+  left_join(., final_17_total_bus, by = c("tran_stop")) %>%
+  rename(bus_stop = n) %>%
+  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
   left_join(.,tran_rider_17_total %>%
-              st_drop_geometry() %>%
               select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
-  left_join(.,acs.2017.stop, by = c("tran_stop")) %>%
-  na.omit()
+  left_join(., acs.2017.stop.dot, by = c("tran_stop")) %>%
+  na.omit() %>%
+  select(-geometry)
+
+final_17_total_acs.buffer <- final_17_total_bike %>%
+  left_join(., final_17_total_bus, by = c("tran_stop")) %>%
+  rename(bus_stop = n) %>%
+  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
+  left_join(.,tran_rider_17_total %>%
+              select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
+  left_join(., acs.2017.stop.buffer, by = c("tran_stop")) %>%
+  na.omit() %>%
+  select(-geometry)
 
 ## 2019 without Time Period
+final_19_total_bike <- tran_rider_19_total %>%
+  st_buffer(radius) %>%
+  st_join(bike_rider_19_total) %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
+  mutate(total_docks = replace_na(total_docks, 0)) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike),
+            total_docks = sum(total_docks)) %>%
+  ungroup() %>%
+  st_drop_geometry()
+  
+final_19_total_bus <- tran_rider_19_total %>%
+  st_buffer(radius) %>%
+  st_join(bus_stop) %>%
+  na.omit() %>%
+  group_by(tran_stop) %>%
+  tally() %>%
+  ungroup() %>%
+  st_drop_geometry()
+  
+final_19_total_acs.dot <- final_19_total_bike %>%
+  left_join(., final_19_total_bus, by = c("tran_stop")) %>%
+  rename(bus_stop = n) %>%
+  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
+  left_join(.,tran_rider_19_total %>%
+              select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
+  left_join(., acs.2019.stop.dot, by = c("tran_stop")) %>%
+  na.omit() %>%
+  select(-geometry)
 
+final_19_total_acs.buffer <- final_19_total_bike %>%
+  left_join(., final_19_total_bus, by = c("tran_stop")) %>%
+  rename(bus_stop = n) %>%
+  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
+  left_join(.,tran_rider_19_total %>%
+              select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
+  left_join(., acs.2019.stop.buffer, by = c("tran_stop")) %>%
+  na.omit() %>%
+  select(-geometry)
 
 ## 2017 with Time Period
 

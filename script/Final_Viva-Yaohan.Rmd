@@ -994,7 +994,25 @@ final_19_total_acs.buffer <- final_19_total_bike %>%
   select(-geometry)
 
 ## 2017 with Time Period
-
+final_17_total_bike <- tran_rider_17_total %>%
+  st_buffer(radius) %>%
+  st_join(bike_rider_17_period) %>%
+  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
+  mutate(total_docks = replace_na(total_docks, 0)) %>%
+  group_by(tran_stop) %>%
+  summarise(total_rider_bike = sum(total_rider_bike),
+            total_docks = sum(total_docks)) %>%
+  ungroup() %>%
+  st_drop_geometry()
+  
+final_17_total_bus <- tran_rider_17_total %>%
+  st_buffer(radius) %>%
+  st_join(bus_stop) %>%
+  na.omit() %>%
+  group_by(tran_stop) %>%
+  tally() %>%
+  ungroup() %>%
+  st_drop_geometry()
 
 ## 2019 with Time Period
 
@@ -1008,11 +1026,11 @@ rm(list = setdiff(ls(), c("final_17_total_acs.dot", "final_17_total_acs.buffer",
                           "final_19_total_acs.dot", "final_19_total_acs.buffer")))
 
 ## 2017
-moda.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_17_total_acs.dot)
+moda.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_17_total_acs.dot)
 summary(moda.0)
 
 ## 2019
-modb.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total_acs.dot)
+modb.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs.dot)
 summary(modb.0)
 ```
 
@@ -1026,26 +1044,53 @@ summary(modb.0)
 
 ## Multiple Regression without Time Period
 
-```{r step2}
-## 2017
-moda.1 <- lm(total_rider_tran ~ .-tran_stop, data = final_17_total_acs.dot)
-summary(moda.1)
+Initial Variable Selection:
+total_rider_bike, bus_stop, pop.den, commuter.tot, job.den, white.share, veh.ownership, medInc, employ.rate, tran.share
 
-moda.2 <- lm(total_rider_tran ~ .-tran_stop, data = final_17_total_acs.buffer)
+```{r step2}
+hist(final_17_total_acs.dot$)
+table(final_17_total_acs.dot$)
+summary(final_17_total_acs.dot)
+## 2017
+moda.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + log(pop.den + 1) + log(commuter.tot + 1) + log(job.den + 1) + white.share + log(veh.ownership + 1) + log(medInc + 1) + log(employ.rate + 1) + log(tran.share + 1), data = final_17_total_acs.dot)
+summary(moda.1)
+vif(moda.1)
+
+moda.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + log(ave.pop.den + 1) + log(commuter.all + 1) + log(ave.job.den + 1) + ave.white.share + log(ave.veh.ownership + 1) + log(ave.employ.rate + 1) + log(ave.tran.share + 1), data = final_17_total_acs.buffer)
 summary(moda.2)
+vif(moda.2)
 
 ## 2019
-modb.1 <- lm(log(total_rider_tran) ~ bike, data = final_19_total_acs.dot)
+
+modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + log(pop.den + 1) + log(commuter.tot + 1) + log(job.den + 1) + white.share + log(veh.ownership + 1) + log(medInc + 1) + log(employ.rate + 1) + log(tran.share + 1), data = final_19_total_acs.dot)
 summary(modb.1)
 vif(modb.1)
 
-
-
-
-
-modb.2 <- lm(total_rider_tran ~ .-tran_stop, data = final_19_total_acs.buffer)
+modb.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop, data = final_19_total_acs.buffer)
 summary(modb.2)
 vif(modb.2)
+```
+
+```{r}
+test1 <- final_17_total_acs.dot %>%
+  filter(total_rider_bike != 0)
+
+test2 <- final_17_total_acs.dot %>%
+  filter(total_rider_bike == 0)
+
+mod1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + job.den + white.share + veh.ownership + medInc + employ.rate + tran.share, data = test1)
+summary(mod1)
+vif(mod1)
+
+mod2 <- lm(log(total_rider_tran) ~ bus_stop + pop.den + veh.ownership + tran.share, data = test2)
+summary(mod2)
+vif(mod2)
+
+mod3 <- lm(log(total_rider_tran) ~ bus_stop + log(pop.den + 1) + log(commuter.tot + 1) + log(job.den + 1) + white.share + log(veh.ownership + 1) + log(medInc + 1) + log(employ.rate + 1) + log(tran.share + 1), data = test2)
+summary(mod3)
+vif(mod3)
+
+stargazer(mod1, mod2, type = "text")
 ```
 
 ## Multiple Regression with Time Period

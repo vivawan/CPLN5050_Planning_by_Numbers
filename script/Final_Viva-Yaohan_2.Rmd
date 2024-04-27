@@ -462,7 +462,7 @@ acs.2019.stop <- tran_stop %>%
 ```{r final_data}
 rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_19_period",
                           "tran_rider_19_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius", "acs.2019.stop")))
+                          "bus_stop", "mbta_core", "radius", "acs.2019.stop", "nn_function")))
 
 ## 2019 without Time Period
 final_19_total_bike <- tran_rider_19_total %>%
@@ -530,10 +530,10 @@ final_19_period_acs <- final_19_period_bike %>%
   left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
   st_drop_geometry() %>%
-  mutate(time_period_cat = factor(case_when(
+  mutate(time_period_cat = case_when(
     time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
     time_period %in% c("weekday_AM_PEAK", "weekday_PM_PEAK") ~ "weekday_peak",
-    TRUE ~ "weekday_off_peak")))
+    TRUE ~ "weekday_off_peak"))
 ```
 
 
@@ -584,8 +584,6 @@ ggplot(tran_rider_17_total) +
 ## Simple Regression
 
 ```{r step1}
-rm(list = setdiff(ls(), c("final_19_total_acs")))
-
 ## 2019
 mod.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
 summary(mod.0)
@@ -627,10 +625,6 @@ Initial Variable Selection:
 "employ.rate"          "log.total_rider_bike" "log.bike.share"           "log.job.den"           
 
 ```{r step2}
-hist(final_19_total_acs$)
-table(final_19_total_acs$)
-summary(final_19_total_acs)
-
 summary(final_19_total_acs)
 
 mod.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + medInc + employ.rate, data = final_19_total_acs)
@@ -652,27 +646,23 @@ summary(mod.5)
 
 mod.6 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_total_acs)
 summary(mod.6)
-
 ```
-
-
 
 ## Multiple Regression with Time Period
 
 ```{r step3}
 ## 2019
-modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1)*time_period, data = final_19_period_acs)
-summary(modb.1)
-vif(modb.1)
-
+mod.7 <- lm(log(total_rider_tran + 1) ~ log(total_rider_bike + 1) + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
+summary(mod.7)
+vif(mod.7)
 ```
 
 ## Multiple Regression with Time Period (Interaction Term)
 
 ```{r step4}
 ## 2019
-
-
+mod.8 <- lm(log(total_rider_tran + 1) ~ log(total_rider_bike + 1)*time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
+summary(mod.8)
 ```
 
 

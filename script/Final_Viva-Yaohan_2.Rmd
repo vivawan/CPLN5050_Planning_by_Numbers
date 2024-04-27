@@ -505,7 +505,7 @@ census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overw
 readRenviron("~/.Renviron")
 
 # get variables
-acs_variable_list.2017 <- load_variables(2017, "acs5")%>%
+acs_variable_list.2019 <- load_variables(201, "acs5")%>%
   filter(geography == 'block group')
 
 acs.var <- c('B01001_001E',#total population
@@ -537,53 +537,10 @@ acs.var <- c('B01001_001E',#total population
 
 ```
 
-### 2017 ACS
+### Get Data
 
-```{r acs2017}
-#get 2017 data
-acs.2017 <- get_acs(geography = "block group",
-                    year = 2017,
-                    variables = acs.var,
-                    geometry = TRUE,
-                    survey = "acs5",
-                    state = "MA",
-                    output = "wide")%>%
-  st_transform(crs = 2249) %>%
-  select(GEOID, all_of(acs.var)) %>%
-  rename(pop.tot = B01001_001E,
-         pop.white = B03002_003E, 
-         
-         com.tot = B08301_001E, 
-         com.car = B08301_002E, 
-         com.bus = B08301_011E, 
-         com.sub = B08301_012E, 
-         com.rail = B08301_013E, 
-         com.trolley = B08301_014E, 
-         com.bike = B08301_018E,
-         com.home = B08301_021E,
-      
-         hh.tot = B25044_001E,
-         hh.noveh.own = B25044_003E,
-         hh.noveh.rent = B25044_010E,
-        
-         medInc = B19013_001E,
-        
-         hh.pover = B17017_002E,
-       
-         pop.16 = B23025_001E, 
-         pop.labor = B23025_002E, 
-        
-         pop.civil = B23025_003E,
-         pop.emp = B23025_004E)%>%
-  mutate(area = st_area(.)) %>%
-  mutate(area = set_units(x = area, value = "acres"))%>%
-  left_join(job.2017, by = c('GEOID'='w_bg'))# join job
-```
-
-### 2019 ACS
-
-```{r acs2019}
-#get 2019 data
+```{r acs data}
+#get data
 acs.2019 <- get_acs(geography = "block group",
                     year = 2019,
                     variables = acs.var,
@@ -623,89 +580,11 @@ acs.2019 <- get_acs(geography = "block group",
   left_join(job.2019, by = c('GEOID'='w_bg')) #join job data
 ```
 
-### 2017 ACS Join 
+### Join to Station
 
-```{r acs-join-2017}
-## 2017 - value
-acs.2017.stop.dot <- tran_stop %>%
-  st_join(acs.2017)%>%
-  mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
-         hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
-         commuter.tot = com.tot-com.home,
-         white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
-         car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
-         bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
-         sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
-         rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
-         tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
-         bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
-         tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
-         veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
-         pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
-         labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
-         employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
-         job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  select(STATION,
-         pop.tot,pop.den,commuter.tot,
-         hh.tot,hh.den,
-         job,job.den,
-         white.share,
-         car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
-         veh.ownership,
-         medInc, pover.rate,
-         labor.rate,employ.rate)%>%
-  rename(tran_stop = STATION) %>%
-  st_drop_geometry()%>%
-  mutate(across(everything(), ~ replace_na(., 0)))
-
-# buffer - average value 
-columns_to_sum <- setdiff(names(acs.2017), c("GEOID", "geometry"))
-acs.2017.stop.buffer <- tran_stop %>%
-  st_buffer(radius) %>%
-  st_join(acs.2017) %>%
-  select(-LINE,-TERMINUS, -ROUTE)%>%  
-  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>% 
-  group_by(STATION)%>%
-  summarize(across(all_of(columns_to_sum), sum, na.rm = TRUE), .groups = "drop")%>%
-  mutate(ave.pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
-         ave.hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
-         commuter.tot = com.tot-com.home,
-         ave.white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
-         ave.car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
-         ave.bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
-         ave.sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
-         ave.rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
-         ave.tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
-         ave.bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
-         ave.tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
-         ave.veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
-         ave.pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
-         ave.labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
-         ave.employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
-         ave.job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  rename(pop.all = pop.tot,
-         commuter.all = commuter.tot,
-         hh.all = hh.tot,
-         job.all = job)%>%
-  select(STATION,
-         pop.all,ave.pop.den,commuter.all,
-         hh.all,ave.hh.den,
-         job.all,ave.job.den,
-         ave.white.share,
-         ave.car.share,ave.bus.share,ave.sub.share,ave.rail.share,ave.tro.share,ave.bike.share,ave.tran.share,
-         ave.veh.ownership,
-         ave.pover.rate,
-         ave.labor.rate,ave.employ.rate)%>%
-  rename(tran_stop = STATION) %>%
-  st_drop_geometry()%>%
-  mutate(across(everything(), ~ replace_na(., 0)))
-```
-
-### 2019 ACS Join
-
-```{r acs-join-2019}
-## 2019 - value
-acs.2019.stop.dot <- tran_stop %>%
+```{r acs-join}
+## calculate value
+acs.2019.stop <- tran_stop %>%
   st_join(acs.2019)%>%
   mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
          hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
@@ -735,49 +614,6 @@ acs.2019.stop.dot <- tran_stop %>%
   rename(tran_stop = STATION) %>%
   st_drop_geometry()%>%
   mutate(across(everything(), ~ replace_na(., 0)))
-
-# buffer- average value 
-columns_to_sum <- setdiff(names(acs.2019), c("GEOID", "geometry"))
-
-acs.2019.stop.buffer <- tran_stop %>%
-  st_buffer(radius) %>%
-  st_join(acs.2019) %>%
-  select(-LINE,-TERMINUS, -ROUTE)%>%  
-  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>% 
-  group_by(STATION)%>%
-  summarize(across(all_of(columns_to_sum), sum, na.rm = TRUE), .groups = "drop")%>%
-  mutate(ave.pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
-         ave.hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
-         commuter.tot = com.tot-com.home,
-         ave.white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
-         ave.car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
-         ave.bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
-         ave.sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
-         ave.rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
-         ave.tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
-         ave.bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
-         ave.tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
-         ave.veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
-         ave.pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
-         ave.labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
-         ave.employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
-         ave.job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  rename(pop.all = pop.tot,
-         commuter.all = commuter.tot,
-         hh.all = hh.tot,
-         job.all = job)%>%
-  select(STATION,
-         pop.all,ave.pop.den,commuter.all,
-         hh.all,ave.hh.den,
-         job.all,ave.job.den,
-         ave.white.share,
-         ave.car.share,ave.bus.share,ave.sub.share,ave.rail.share,ave.tro.share,ave.bike.share,ave.tran.share,
-         ave.veh.ownership,
-         ave.pover.rate,
-         ave.labor.rate,ave.employ.rate)%>%
-  rename(tran_stop = STATION) %>%
-  st_drop_geometry()%>%
-  mutate(across(everything(), ~ replace_na(., 0)))
 ```
 
 
@@ -785,9 +621,8 @@ acs.2019.stop.buffer <- tran_stop %>%
 
 ## correlation plot
 ```{r dot cor, warning=FALSE, message=FALSE}
-##2 017 acs dot
 # Select only numeric variables and remove rows with missing values
-numericVars <- final_17_total_acs.dot %>%
+numericVars <- final_19_total_acs %>%
   select_if(is.numeric) %>%  # Select only numeric variables
   na.omit()  # Remove rows with missing values
 
@@ -821,46 +656,6 @@ numericVars4 <- numericVars3%>%
 ggpairs(numericVars4)
 
 ```
-
-```{r buffer cor, warning=FALSE, message=FALSE}
-## 2017 acs dot
-# Select only numeric variables and remove rows with missing values
-numericVars.buf <- final_17_total_acs.buffer %>%
-  select_if(is.numeric) %>%  # Select only numeric variables
-  na.omit()  # Remove rows with missing values
-
-## built environment
-numericVars.buf1<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,total_docks,bus_stop,pop.all,ave.pop.den,
-         commuter.all,hh.all,ave.hh.den, job.all, ave.job.den)
-ggpairs(numericVars.buf1)
-#-> 
-
-## socialecnomic
-numericVars.buf2<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,bus_stop,ave.pop.den,
-         commuter.all,ave.job.den, ave.white.share, ave.veh.ownership,
-         ave.pover.rate,ave.labor.rate,ave.employ.rate,ave.tran.share)
-ggpairs(numericVars.buf2)
-#-> 
-
-## results of initial variable selection
-numericVars3<-numericVars%>%
-  select(total_rider_tran, total_rider_bike,bus_stop,pop.den,
-         commuter.tot,job.den, white.share, veh.ownership, medInc, employ.rate,tran.share
-         )
-ggpairs(numericVars3)
-
-## add log
-numericVars4 <- numericVars3%>%
-  mutate(log_rider_tran = log(total_rider_tran+1),
-         log_rider_bike = log(total_rider_bike+1),
-         log_job_den = log(job. den+1))%>%
-  select(-total_rider_tran, -total_rider_bike, -job.den)
-ggpairs(numericVars4)
-
-```
-
 
 
 
@@ -906,53 +701,10 @@ ggplot(tran_rider_17_total) +
 ## Final Dataset
 
 ```{r final_data}
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
-                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
-                          "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", 
+                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_19_period", "bike_rider_19_total",
                           "bus_stop", "mbta_core", "radius",
-                          "acs.2017.stop.dot","acs.2017.stop.buffer",
-                          "acs.2019.stop.dot","acs.2019.stop.buffer")))
-
-## 2017 without Time Period
-final_17_total_bike <- tran_rider_17_total %>%
-  st_buffer(radius) %>%
-  st_join(bike_rider_17_total) %>%
-  mutate(total_rider_bike = replace_na(total_rider_bike, 0)) %>%
-  mutate(total_docks = replace_na(total_docks, 0)) %>%
-  group_by(tran_stop) %>%
-  summarise(total_rider_bike = sum(total_rider_bike),
-            total_docks = sum(total_docks)) %>%
-  ungroup() %>%
-  st_drop_geometry()
-  
-final_17_total_bus <- tran_rider_17_total %>%
-  st_buffer(radius) %>%
-  st_join(bus_stop) %>%
-  na.omit() %>%
-  group_by(tran_stop) %>%
-  tally() %>%
-  ungroup() %>%
-  st_drop_geometry()
-  
-final_17_total_acs.dot <- final_17_total_bike %>%
-  left_join(., final_17_total_bus, by = c("tran_stop")) %>%
-  rename(bus_stop = n) %>%
-  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
-  left_join(.,tran_rider_17_total %>%
-              select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
-  left_join(., acs.2017.stop.dot, by = c("tran_stop")) %>%
-  na.omit() %>%
-  select(-geometry)
-
-final_17_total_acs.buffer <- final_17_total_bike %>%
-  left_join(., final_17_total_bus, by = c("tran_stop")) %>%
-  rename(bus_stop = n) %>%
-  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
-  left_join(.,tran_rider_17_total %>%
-              select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
-  left_join(., acs.2017.stop.buffer, by = c("tran_stop")) %>%
-  na.omit() %>%
-  select(-geometry)
+                          "acs.2019.stop")))
 
 ## 2019 without Time Period
 final_19_total_bike <- tran_rider_19_total %>%
@@ -975,27 +727,15 @@ final_19_total_bus <- tran_rider_19_total %>%
   ungroup() %>%
   st_drop_geometry()
   
-final_19_total_acs.dot <- final_19_total_bike %>%
+final_19_total_acs <- final_19_total_bike %>%
   left_join(., final_19_total_bus, by = c("tran_stop")) %>%
   rename(bus_stop = n) %>%
   mutate(bus_stop = replace_na(bus_stop, 0)) %>%
   left_join(.,tran_rider_19_total %>%
               select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
-  left_join(., acs.2019.stop.dot, by = c("tran_stop")) %>%
+  left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
   st_as_sf()
-
-final_19_total_acs.buffer <- final_19_total_bike %>%
-  left_join(., final_19_total_bus, by = c("tran_stop")) %>%
-  rename(bus_stop = n) %>%
-  mutate(bus_stop = replace_na(bus_stop, 0)) %>%
-  left_join(.,tran_rider_19_total %>%
-              select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
-  left_join(., acs.2019.stop.buffer, by = c("tran_stop")) %>%
-  na.omit() %>%
-  select(-geometry)
-
-## 2017 with Time Period
 
 
 ## 2019 with Time Period
@@ -1017,13 +757,13 @@ final_19_period_bus <- tran_rider_19_total %>%
   ungroup() %>%
   st_drop_geometry()
 
-final_19_period_acs.dot <- final_19_period_bike %>%
+final_19_period_acs <- final_19_period_bike %>%
   left_join(., final_19_period_bus, by = c("tran_stop")) %>%
   rename(bus_stop = n) %>%
   mutate(bus_stop = replace_na(bus_stop, 0)) %>%
   left_join(.,tran_rider_19_period %>%
               select(tran_stop, total_rider_tran, time_period, terminus), by = c("tran_stop", "time_period")) %>%
-  left_join(., acs.2019.stop.dot, by = c("tran_stop")) %>%
+  left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
   st_as_sf()
 ```
@@ -1031,21 +771,17 @@ final_19_period_acs.dot <- final_19_period_bike %>%
 ## Simple Regression
 
 ```{r step1}
-rm(list = setdiff(ls(), c("final_17_total_acs.dot", "final_17_total_acs.buffer",
-                          "final_19_total_acs.dot", "final_19_total_acs.buffer")))
+rm(list = setdiff(ls(), c("final_19_total_acs")))
 
-## 2017
-moda.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_17_total_acs.dot)
-summary(moda.0)
 
 ## 2019
-modb.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs.dot)
+modb.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
 summary(modb.0)
 ```
 
 ```{r acs buffer}
 
-modb.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total_acs.dot)
+modb.0 <- lm(total_rider_tran ~ total_rider_bike, data = final_19_total_acs)
 summary(modb.0)
 ```
 
@@ -1057,46 +793,23 @@ Initial Variable Selection:
 total_rider_bike, bus_stop, pop.den, commuter.tot, job.den, white.share, veh.ownership, medInc, employ.rate, tran.share
 
 ```{r step2}
-hist(final_17_total_acs.dot$)
-table(final_17_total_acs.dot$)
-summary(final_17_total_acs.dot)
+hist(final_19_total_acs$)
+table(final_19_total_acs$)
+summary(final_19_total_acs)
 
-final_19_total_acs.dot <- final_19_total_acs.dot %>%
+final_19_total_acs <- final_19_total_acs %>%
   mutate(nearest_bike =
         nn_function(st_coordinates(tran_rider_19_total), st_coordinates(bike_rider_19_total),1))
 
 ## 2019
 
-modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1)*time_period, data = final_19_period_acs.dot)
+modb.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1)*time_period, data = final_19_period_acs)
 summary(modb.1)
 vif(modb.1)
 
-modb.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop, data = final_19_total_acs.buffer)
-summary(modb.2)
-vif(modb.2)
 ```
 
-```{r}
-test1 <- final_17_total_acs.dot %>%
-  filter(total_rider_bike != 0)
 
-test2 <- final_17_total_acs.dot %>%
-  filter(total_rider_bike == 0)
-
-mod1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + job.den + white.share + veh.ownership + medInc + employ.rate + tran.share, data = test1)
-summary(mod1)
-vif(mod1)
-
-mod2 <- lm(log(total_rider_tran) ~ bus_stop + pop.den + veh.ownership + tran.share, data = test2)
-summary(mod2)
-vif(mod2)
-
-mod3 <- lm(log(total_rider_tran) ~ bus_stop + log(pop.den + 1) + log(commuter.tot + 1) + log(job.den + 1) + white.share + log(veh.ownership + 1) + log(medInc + 1) + log(employ.rate + 1) + log(tran.share + 1), data = test2)
-summary(mod3)
-vif(mod3)
-
-stargazer(mod1, mod2, type = "text")
-```
 
 ## Multiple Regression with Time Period
 

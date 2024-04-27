@@ -468,7 +468,7 @@ job.2017 <- grab_lodes(state = "ma", year = 2017,
                     state_part = "main", #both worklace and residence in-state
                     agg_geo = "bg",
                     download_dir = file.path("data/raw"))%>%
-  select(year,w_bg,C000)%>%
+  select(w_bg,C000)%>%
   rename(job = C000)
 
 # LEHD data - 2019
@@ -479,9 +479,8 @@ job.2019<- grab_lodes(state = "ma", year = 2019,
                     state_part = "main", #both worklace and residence in-state
                     agg_geo = "bg",
                     download_dir = file.path("data/raw"))%>%
-  select(year,w_bg,C000)%>%
+  select(w_bg,C000)%>%
   rename(job = C000)
-
 ```
 ## ACS Data
 
@@ -555,7 +554,7 @@ acs.2017 <- get_acs(geography = "block group",
                     state = "MA",
                     output = "wide")%>%
   st_transform(crs = 2249) %>%
-  select(GEOID, NAME, all_of(acs.var)) %>%
+  select(GEOID, all_of(acs.var)) %>%
   rename(pop.tot = B01001_001E,
          pop.white = B03002_003E, 
          
@@ -583,33 +582,7 @@ acs.2017 <- get_acs(geography = "block group",
          pop.emp = B23025_004E)%>%
   mutate(area = st_area(.)) %>%
   mutate(area = set_units(x = area, value = "acres"))%>%
-  left_join(job.2017, by = c('GEOID'='w_bg'))%>% #join job data
-  mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
-         hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
-         commuter.tot = com.tot-com.home,
-         white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
-         car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
-         bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
-         sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
-         rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
-         tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
-         bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
-         car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
-         tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
-         veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
-         pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
-         labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
-         employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
-         job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  select(GEOID,NAME,
-         pop.tot,pop.den,
-         commuter.tot,hh.tot,hh.den,
-         job,job.den,
-         white.share,
-         car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
-         veh.ownership,
-         medInc, pover.rate,
-         labor.rate,employ.rate)
+  left_join(job.2017, by = c('GEOID'='w_bg'))# join job
 ```
 
 
@@ -624,7 +597,7 @@ acs.2019 <- get_acs(geography = "block group",
                     state = "MA",
                     output = "wide")%>%
   st_transform(crs = 2249) %>%
-  select(GEOID, NAME, all_of(acs.var)) %>%
+  select(GEOID, all_of(acs.var)) %>%
   rename(pop.tot = B01001_001E,
          pop.white = B03002_003E, 
          
@@ -652,7 +625,15 @@ acs.2019 <- get_acs(geography = "block group",
          pop.emp = B23025_004E)%>%
   mutate(area = st_area(.)) %>%
   mutate(area = set_units(x = area, value = "acres"))%>%
-  left_join(job.2019, by = c('GEOID'='w_bg'))%>% #join job data
+  left_join(job.2019, by = c('GEOID'='w_bg')) #join job data
+```
+
+
+```{r acs-join-2017}
+## 2017
+# value
+acs.2017.stop.dot <- tran_stop %>%
+  st_join(acs.2017)%>%
   mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
          hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
          commuter.tot = com.tot-com.home,
@@ -663,38 +644,143 @@ acs.2019 <- get_acs(geography = "block group",
          rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
          tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
          bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
-         car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
          tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
          veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
          pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
          labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
          employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
          job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
-  select(GEOID,NAME,
-         pop.tot,pop.den,
-         commuter.tot,hh.tot,hh.den,
+  select(STATION,GEOID,
+         pop.tot,pop.den,commuter.tot,
+         hh.tot,hh.den,
          job,job.den,
          white.share,
          car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
          veh.ownership,
          medInc, pover.rate,
          labor.rate,employ.rate)
+
+# buffer- average value 
+columns_to_sum <- setdiff(names(acs.2017), c("GEOID", "geometry"))
+acs.2017.stop.buffer <- tran_stop %>%
+  st_buffer(radius) %>%
+  st_join(acs.2017) %>%
+  select(-LINE,-TERMINUS, -ROUTE)%>%  
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>% 
+  group_by(STATION)%>%
+  summarize(across(all_of(columns_to_sum), sum, na.rm = TRUE), .groups = "drop")%>%
+  mutate(ave.pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
+         ave.hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
+         commuter.tot = com.tot-com.home,
+         ave.white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
+         ave.car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
+         ave.bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
+         ave.sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
+         ave.rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
+         ave.tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
+         ave.bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
+         ave.tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
+         ave.veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
+         ave.pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
+         ave.labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
+         ave.employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
+         ave.job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
+  rename(pop.all = pop.tot,
+         commuter.all = commuter.tot,
+         hh.all = hh.tot,
+         job.all = job)%>%
+  select(STATION,
+         pop.all,ave.pop.den,commuter.all,
+         hh.all,ave.hh.den,
+         job.all,ave.job.den,
+         ave.white.share,
+         ave.car.share,ave.bus.share,ave.sub.share,ave.rail.share,ave.tro.share,ave.bike.share,ave.tran.share,
+         ave.veh.ownership,
+         ave.pover.rate,
+         ave.labor.rate,ave.employ.rate)
+  
+acs.2017.stop <- acs.2017.stop.dot %>%
+  st_drop_geometry()%>%
+  select(-GEOID)%>%
+  left_join(acs.2017.stop.buffer, by = 'STATION')
+
 ```
 
 
-```{r acs-join}
-# stop buffer 1/4 mile = 1320 feet
-tran_stop <- st_transform(tran_stop, crs = 'EPSG:2249')
-tran_stop_buffer <- st_buffer(x = tran_stop, dist = 1320)
+```{r acs-join-2019}
+## 2019
+# value
+acs.2019.stop.dot <- tran_stop %>%
+  st_join(acs.2019)%>%
+  mutate(pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
+         hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
+         commuter.tot = com.tot-com.home,
+         white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
+         car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
+         bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
+         sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
+         rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
+         tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
+         bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
+         tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
+         veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
+         pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
+         labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
+         employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
+         job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
+  select(STATION,GEOID,
+         pop.tot,pop.den,commuter.tot,
+         hh.tot,hh.den,
+         job,job.den,
+         white.share,
+         car.share,bus.share,sub.share,rail.share,tro.share,bike.share,tran.share,
+         veh.ownership,
+         medInc, pover.rate,
+         labor.rate,employ.rate)
 
-# map
-tm_shape(sld) +
-   tm_polygons(col = "gray70", border.col = "gray80") +
-  tm_shape(tran_stop_buffer) +
-   tm_polygons(col = 'pink', border.col = "red")+
-tm_shape(tran_stop) +
-   tm_dots(col = "black", size = .1) +
-tm_layout(frame = FALSE)
+# buffer- average value 
+columns_to_sum <- setdiff(names(acs.2019), c("GEOID", "geometry"))
+acs.2019.stop.buffer <- tran_stop %>%
+  st_buffer(radius) %>%
+  st_join(acs.2019) %>%
+  select(-LINE,-TERMINUS, -ROUTE)%>%  
+  mutate(across(where(is.numeric), ~ replace_na(., 0))) %>% 
+  group_by(STATION)%>%
+  summarize(across(all_of(columns_to_sum), sum, na.rm = TRUE), .groups = "drop")%>%
+  mutate(ave.pop.den = round(ifelse(as.numeric(area) > 0, pop.tot / area, 0),digits = 2),
+         ave.hh.den = round(ifelse(as.numeric(area) > 0, hh.tot / area, 0),digits = 2),
+         commuter.tot = com.tot-com.home,
+         ave.white.share = round(ifelse(pop.tot > 0, pop.white / pop.tot, 0) * 100, digits = 2),
+         ave.car.share = round(ifelse(com.tot > 0, com.car / (com.tot-com.home), 0)*100, digits = 2),
+         ave.bus.share = round(ifelse(com.tot > 0, com.bus / (com.tot-com.home), 0)*100, digits = 2),
+         ave.sub.share = round(ifelse(com.tot > 0, com.sub / (com.tot-com.home), 0)*100, digits = 2),
+         ave.rail.share = round(ifelse(com.tot > 0, com.rail / (com.tot-com.home), 0)*100, digits = 2),
+         ave.tro.share = round(ifelse(com.tot > 0, com.trolley / (com.tot-com.home), 0)*100, digits = 2),
+         ave.bike.share = round(ifelse(com.tot > 0, com.bike / (com.tot-com.home), 0)*100, digits = 2),
+         ave.tran.share = round(ifelse(com.tot > 0, (com.sub+com.rail+com.trolley) / (com.tot-com.home), 0)*100, digits = 2),
+         ave.veh.ownership = round(ifelse(hh.tot > 0, (hh.noveh.own+hh.noveh.rent) / hh.tot, 0)*100, digits = 2),
+         ave.pover.rate = round(ifelse(hh.tot > 0, hh.pover / hh.tot, 0)*100, digits = 2),
+         ave.labor.rate = round(ifelse(pop.16 > 0, pop.labor / pop.16, 0)*100, digits = 2),
+         ave.employ.rate = round(ifelse(pop.civil > 0, pop.emp / pop.civil, 0)*100, digits = 2),
+         ave.job.den = round(ifelse(as.numeric(area) > 0, job / area, 0),digits = 2))%>%
+  rename(pop.all = pop.tot,
+         commuter.all = commuter.tot,
+         hh.all = hh.tot,
+         job.all = job)%>%
+  select(STATION,
+         pop.all,ave.pop.den,commuter.all,
+         hh.all,ave.hh.den,
+         job.all,ave.job.den,
+         ave.white.share,
+         ave.car.share,ave.bus.share,ave.sub.share,ave.rail.share,ave.tro.share,ave.bike.share,ave.tran.share,
+         ave.veh.ownership,
+         ave.pover.rate,
+         ave.labor.rate,ave.employ.rate)
+  
+acs.2019.stop <- acs.2019.stop.dot %>%
+  st_drop_geometry()%>%
+  select(-GEOID)%>%
+  left_join(acs.2019.stop.buffer, by = 'STATION')
 ```
 
 # Data Visualization

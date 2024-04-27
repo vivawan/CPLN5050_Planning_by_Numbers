@@ -458,18 +458,18 @@ bus_stop <- bus_stop %>%
 - Employment density
 
 **Socioeconomic Variables**
-- non-white share
-- commute in vehicles share
-- commute in bus share
-- commute by subway share
-- commute by rail share
-- commute by trolley share
-- commute by bike share
-- vehicle ownership for workers
-- household median income
-- poverty rate
-- labor force participation rate
-- employment rate
+- Non-white share
+- Commute in vehicles share
+- Commute in bus share
+- Commute by subway share
+- Commute by rail share
+- Commute by trolley share
+- Commute by bike share
+- Vehicle ownership for workers
+- Household median income
+- Poverty rate
+- Labor force participation rate
+- Employment rate
 
 ```{r LEHD}
 # LEHD data - 2017
@@ -775,11 +775,6 @@ acs.2019.stop <- acs.2019.stop.dot %>%
   st_drop_geometry()%>%
   select(-GEOID)%>%
   left_join(acs.2019.stop.buffer, by = 'STATION')
-
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
-                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
-                          "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius", "acs.2017.stop", "acs.2019.stop")))
 ```
 
 
@@ -827,6 +822,11 @@ ggplot(tran_rider_17_total) +
 ## Final Dataset
 
 ```{r final_data}
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
+                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
+                          "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
+                          "bus_stop", "mbta_core", "radius", "acs.2017.stop", "acs.2019.stop")))
+
 ## 2017 without Time Period
 final_17_total <- tran_rider_17_total %>%
   st_buffer(radius) %>%

@@ -444,11 +444,6 @@ bus_stop <- bus_stop %>%
   select(STOP_NAME) %>%
   rename(bus_stop = STOP_NAME) %>%
   distinct(bus_stop, .keep_all = TRUE)
-
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
-                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
-                          "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius")))
 ```
 
 ## LEHD and ACS data
@@ -500,6 +495,7 @@ job.2019<- grab_lodes(state = "ma", year = 2019,
   rename(job = C000)
 ```
 
+### Variable List
 
 ```{r acs.var}
 census_api_key("3ec2bee8c227ff3f9df970d0ffbb11ee1384076e", install = TRUE, overwrite = TRUE)
@@ -538,6 +534,7 @@ acs.var <- c('B01001_001E',#total population
 
 ```
 
+### 2017 ACS
 
 ```{r acs2017}
 #get 2017 data
@@ -580,7 +577,7 @@ acs.2017 <- get_acs(geography = "block group",
   left_join(job.2017, by = c('GEOID'='w_bg'))# join job
 ```
 
-
+### 2019 ACS
 
 ```{r acs2019}
 #get 2019 data
@@ -623,6 +620,7 @@ acs.2019 <- get_acs(geography = "block group",
   left_join(job.2019, by = c('GEOID'='w_bg')) #join job data
 ```
 
+### 2017 ACS Join 
 
 ```{r acs-join-2017}
 ## 2017
@@ -701,6 +699,7 @@ acs.2017.stop <- acs.2017.stop.dot %>%
 
 ```
 
+### 2019 ACS Join
 
 ```{r acs-join-2019}
 ## 2019
@@ -776,6 +775,11 @@ acs.2019.stop <- acs.2019.stop.dot %>%
   st_drop_geometry()%>%
   select(-GEOID)%>%
   left_join(acs.2019.stop.buffer, by = 'STATION')
+
+rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_17_period", "tran_rider_17_total",
+                          "tran_rider_19_period", "tran_rider_19_total", "bike_rider_17_period",
+                          "bike_rider_17_total", "bike_rider_19_period", "bike_rider_19_total",
+                          "bus_stop", "mbta_core", "radius", "acs.2017.stop", "acs.2019.stop")))
 ```
 
 

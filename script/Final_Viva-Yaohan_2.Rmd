@@ -102,6 +102,10 @@ tran_line <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_ARC.shp")) %
 tran_stop <- st_read(here::here("data/final/mbta_rapid_transit/MBTA_NODE.shp")) %>%
   st_transform(crs = 2249)
 
+tran_line2<- tran_line%>%
+  filter(LINE != "SILVER")
+st_write(obj = tran_line2,
+         dsn = here::here("data/processed/tran_line.shp"))
 
 # Bike Data
 ## Bike Ridership
@@ -121,6 +125,8 @@ bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
 # MBTA Boundary
 mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp")) %>%
   st_transform(crs = 2249)
+
+
 
 # Set Search Radius
 radius <- c(1320)
@@ -571,8 +577,6 @@ final_19_period_acs <- final_19_period_bike %>%
 
 
 # Data Visualization
-
-
 
 
 ## Transit Data

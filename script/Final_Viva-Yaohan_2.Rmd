@@ -605,8 +605,8 @@ final_19_period_acs %>%
     'sunday_OFF_PEAK'
   )))%>%
   group_by(time_period)%>%
-  summarize(mean.hour.ridership = mean(hour_rider_tran))%>%
-  ggplot(., aes(x = time_period, y = mean.hour.ridership))+
+  summarize(mean.hour.ridership = mean(hour_rider_tran)) %>%
+  ggplot(., aes(x = time_period, y = mean.hour.ridership)) +
   geom_col(color = "black", fill = "grey", width = 0.65) +
   labs(x = "", y = "") +
   geom_hline(yintercept = 0, size = 0.6, color = "black") +
@@ -617,18 +617,40 @@ final_19_period_acs %>%
 
 ## Log Transformation of Ridership Data
 
-```{r log_ridership}
+```{r log_ridership, fig.height=5.5, fig.width=7}
 # Transit Ridership
-ggplot(., aes(x = time_period, y = mean.hour.ridership))+
-  geom_col()+
-  labs(title = "Mean Ridership Per Hour by Time Period",
-       x = "Time Period",
-       y = "Mean Ridership") +
-  theme_minimal()
+ggplot(final_19_total_acs, aes(x = total_rider_tran)) +
+  geom_histogram(color = "black", fill = "grey", bins = 15) +
+  labs(x = "", y = "") +
+  geom_hline(yintercept = 0, size = 0.6, color = "black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8))
+
+ggplot(final_19_total_acs, aes(x = log(total_rider_tran))) +
+  geom_histogram(color = "black", fill = "grey", bins = 15) +
+  labs(x = "", y = "") +
+  geom_hline(yintercept = 0, size = 0.6, color = "black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8))
 
 # Bike Ridership
+ggplot(final_19_total_acs, aes(x = total_rider_bike)) +
+  geom_histogram(color = "black", fill = "grey", bins = 15) +
+  labs(x = "", y = "") +
+  geom_hline(yintercept = 0, size = 0.6, color = "black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8))
 
-
+ggplot(final_19_total_acs, aes(x = log(total_rider_bike + 1))) +
+  geom_histogram(color = "black", fill = "grey", bins = 15) +
+  labs(x = "", y = "") +
+  geom_hline(yintercept = 0, size = 0.6, color = "black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8))
 ```
 
 

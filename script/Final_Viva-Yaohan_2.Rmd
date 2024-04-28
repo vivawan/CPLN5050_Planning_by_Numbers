@@ -171,6 +171,9 @@ tran_stop <- tran_stop %>%
 tran_rider <- tran_rider %>%
   mutate(time_period = paste(day_type_name, time_period_name, sep = "_"))
 
+test <- tran_rider %>%
+  filter(season == "Fall 2019") %>%
+  filter(stop_name == "Beaconsfield")
 ### Transit Ridership by Time Period
 tran_rider_19_period <- tran_rider %>%
   filter(season == "Fall 2019") %>%
@@ -495,7 +498,7 @@ final_19_total_acs <- final_19_total_bike %>%
   na.omit() %>%
   st_as_sf()%>%
   # aggregate ridership = 1weekday+2weekends -> ridership per day
-  mutate(total_rider_bike = round(total_rider_bike/3, digits = 0),
+  mutate(total_rider_bike = round(total_rider_bike/92, digits = 0),
          total_rider_tran = round(total_rider_tran/3, digits = 0))
 
 ### add distance factor
@@ -533,6 +536,11 @@ final_19_period_acs <- final_19_period_bike %>%
   left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
   st_drop_geometry() %>%
+  # get the average ridership per day
+  mutate(total_rider_bike = case_when(
+    str_starts(time_period, "weekday") ~ total_rider_bike / 66,
+    str_starts(time_period, "saturday") ~ total_rider_bike / 13,
+    TRUE ~ total_rider_bike / 13)) %>%
   # get the ridership per hour for each period
   mutate(time_hour = case_when(
     time_period == 'weekday_VERY_EARLY_MORNING'~ 3,
@@ -544,8 +552,8 @@ final_19_period_acs <- final_19_period_bike %>%
     time_period == 'weekday_EVENING'~ 3.5,
     time_period == 'weekday_LATE_EVENING'~ 2,
     time_period == 'weekday_NIGHT'~ 3,
-    time_period == 'saturday_OFF_PEAK'~ 24,
-    time_period == 'sunday_OFF_PEAK'~ 24
+    time_period == 'saturday_OFF_PEAK'~ 18,
+    time_period == 'sunday_OFF_PEAK'~ 17
     ))%>%
   mutate(hour_rider_tran = round(total_rider_tran/time_hour, digits = 0),
          hour_rider_bike = round(total_rider_bike/time_hour, digits = 0))%>%
@@ -553,7 +561,12 @@ final_19_period_acs <- final_19_period_bike %>%
   mutate(time_period_cat = case_when(
     time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
     time_period %in% c("weekday_AM_PEAK", "weekday_PM_PEAK") ~ "weekday_peak",
-    TRUE ~ "weekday_off_peak"))
+    TRUE ~ "weekday_off_peak")) %>%
+  mutate(time_period_cat_2 = case_when(
+    time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
+    time_period %in% c("weekday_VERY_EARLY_MORNING", "weekday_EARLY_AM", "weekday_AM_PEAK") ~ "weekday_morning",
+    time_period %in% c("weekday_MIDDAY_BASE", "weekday_MIDDAY_SCHOOL", "weekday_PM_PEAK") ~ "weekday_midday",
+    TRUE ~ "weekday_evening"))
 ```
 
 
@@ -681,27 +694,25 @@ summary(mod.1)
 vif(mod.1)
 
 ## delete variable from the one with the largest p-value
-mod.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + medInc, data = final_19_total_acs)
+mod.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + employ.rate, data = final_19_total_acs)
 summary(mod.2)
+vif(mod.2)
 
-mod.3 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + medInc, data = final_19_total_acs)
+mod.3 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership, data = final_19_total_acs)
 summary(mod.3)
 
-mod.4 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share + medInc, data = final_19_total_acs)
+mod.4 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share + veh.ownership, data = final_19_total_acs)
 summary(mod.4)
 
 mod.5 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share, data = final_19_total_acs)
 summary(mod.5)
-
-mod.6 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_total_acs)
-summary(mod.6)
 ```
 
 ## Multiple Regression with Time Period
 
 ```{r step3}
 ## 2019
-mod.7 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1) + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
+mod.7 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1) + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share, data = final_19_period_acs)
 summary(mod.7)
 vif(mod.7)
 ```
@@ -710,8 +721,9 @@ vif(mod.7)
 
 ```{r step4}
 ## 2019
-mod.8 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1)*time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
+mod.8 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1)*time_period_cat + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share , data = final_19_period_acs)
 summary(mod.8)
+plot(mod.8)
 ```
 
 

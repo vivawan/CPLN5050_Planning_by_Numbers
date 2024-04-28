@@ -112,8 +112,7 @@ bike_rider_19_oct <- read_csv(here::here("data/final/201910-bluebikes-tripdata.c
 bike_stop <- read_csv(here::here("data/final/current_bluebikes_stations.csv"))
 
 
-# Bus Data
-## Bus Stop
+# Bus Stop
 bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
   st_transform(crs = 2249)
 
@@ -121,7 +120,6 @@ bus_stop <- st_read(here::here("data/final/mbtabus/MBTABUSSTOPS_PT.shp")) %>%
 # MBTA Boundary
 mbta_core <- st_read(here::here("data/final/Core_Service_Area/Core_Service_Area.shp")) %>%
   st_transform(crs = 2249)
-
 
 
 # Set Search Radius
@@ -162,9 +160,9 @@ tran_rider <- tran_rider %>%
     stop_name == "Summit Ave." ~ "Summit Avenue",
     TRUE ~ stop_name))
 
-name_rider <- unique(tran_rider$stop_name) #113
-name_stop <- tran_stop$STATION #170
-not_in_station <- as.data.frame(setdiff(name_rider, name_stop))#station in ridership but not in stop shapefile -> final 111 stations
+name_rider <- unique(tran_rider$stop_name) # 113
+name_stop <- tran_stop$STATION # 170
+not_in_station <- as.data.frame(setdiff(name_rider, name_stop)) # station in ridership but not in stop shapefile -> final 111 stations
 
 tran_stop <- tran_stop %>%
   filter(LINE != "SILVER") ## Silver Line is BRT
@@ -173,9 +171,6 @@ tran_stop <- tran_stop %>%
 tran_rider <- tran_rider %>%
   mutate(time_period = paste(day_type_name, time_period_name, sep = "_"))
 
-test <- tran_rider %>%
-  filter(season == "Fall 2019") %>%
-  filter(stop_name == "Beaconsfield")
 ### Transit Ridership by Time Period
 tran_rider_19_period <- tran_rider %>%
   filter(season == "Fall 2019") %>%
@@ -325,10 +320,10 @@ bus_stop <- bus_stop %>%
 **Built Environment Variables**
 - Total population 
 - Population density 
-- Total Commuting Workers
-- Total Occupied House Unit 
+- Total commuting workers
+- Total occupied house unit 
 - Housing density 
-- Total Employment
+- Total employment
 - Employment density
 
 **Socioeconomic Variables**
@@ -390,10 +385,9 @@ acs.var <- c('B01001_001E',#total population
              #-> employment rate
              'B23025_003E',#Civilian labor force
              'B23025_004E')#population employed
-
 ```
 
-### Get Data
+### Download Data
 
 ```{r acs data}
 #get data
@@ -408,7 +402,6 @@ acs.2019 <- get_acs(geography = "block group",
   select(GEOID, all_of(acs.var)) %>%
   rename(pop.tot = B01001_001E,
          pop.white = B03002_003E, 
-         
          com.tot = B08301_001E, 
          com.car = B08301_002E, 
          com.sub = B08301_012E, 
@@ -416,15 +409,11 @@ acs.2019 <- get_acs(geography = "block group",
          com.trolley = B08301_014E, 
          com.bike = B08301_018E,
          com.home = B08301_021E,
-      
          hh.tot = B25044_001E,
          hh.noveh.own = B25044_003E,
          hh.noveh.rent = B25044_010E,
-        
          medInc = B19013_001E,
-        
          hh.pover = B17017_002E,
-        
          pop.civil = B23025_003E,
          pop.emp = B23025_004E)%>%
   mutate(area = st_area(.)) %>%
@@ -465,9 +454,10 @@ acs.2019.stop <- tran_stop %>%
 ## Final Dataset
 
 ```{r final_data}
-rm(list = setdiff(ls(), c("tran_line", "tran_stop", "tran_rider_19_period",
-                          "tran_rider_19_total", "bike_rider_19_period", "bike_rider_19_total",
-                          "bus_stop", "mbta_core", "radius", "acs.2019.stop", "nn_function")))
+rm(list = setdiff(ls(), c("tran_rider_19_period", "tran_rider_19_total",
+                          "bike_rider_19_period", "bike_rider_19_total",
+                          "bus_stop", "mbta_core", "radius", "acs.2019.stop",
+                          "nn_function")))
 
 ## 2019 without Time Period
 final_19_total_bike <- tran_rider_19_total %>%
@@ -542,7 +532,7 @@ final_19_period_acs <- final_19_period_bike %>%
   mutate(total_rider_bike = case_when(
     str_starts(time_period, "weekday") ~ total_rider_bike / 66,
     str_starts(time_period, "saturday") ~ total_rider_bike / 13,
-    TRUE ~ total_rider_bike / 13)) %>%
+    str_starts(time_period, "sunday") ~ total_rider_bike / 13)) %>%
   # get the ridership per hour for each period
   mutate(time_hour = case_when(
     time_period == 'weekday_VERY_EARLY_MORNING'~ 3,
@@ -558,27 +548,24 @@ final_19_period_acs <- final_19_period_bike %>%
     time_period == 'sunday_OFF_PEAK'~ 17
     ))%>%
   mutate(hour_rider_tran = round(total_rider_tran/time_hour, digits = 0),
-         hour_rider_bike = round(total_rider_bike/time_hour, digits = 0))%>%
+         hour_rider_bike = round(total_rider_bike/time_hour, digits = 0)) %>%
   select(-total_rider_bike, -total_rider_tran)%>%
   mutate(time_period_cat = case_when(
     time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
     time_period %in% c("weekday_AM_PEAK", "weekday_PM_PEAK") ~ "weekday_peak",
-    TRUE ~ "weekday_off_peak")) %>%
-  mutate(time_period_cat_2 = case_when(
-    time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
-    time_period %in% c("weekday_VERY_EARLY_MORNING", "weekday_EARLY_AM", "weekday_AM_PEAK") ~ "weekday_morning",
-    time_period %in% c("weekday_MIDDAY_BASE", "weekday_MIDDAY_SCHOOL", "weekday_PM_PEAK") ~ "weekday_midday",
-    TRUE ~ "weekday_evening"))
+    TRUE ~ "weekday_off_peak"))
 ```
 
 
 # Data Visualization
 
-
-## Transit Data
+## Ridership by Time Period
 
 ```{r ridership per hour by time period}
-# plot
+# Before
+
+
+# After
 final_19_period_acs %>% 
   mutate(time_period = factor(time_period,
                               levels = c(
@@ -604,39 +591,13 @@ final_19_period_acs %>%
   theme_minimal()
 ```
 
+## Log Transformation of Ridership Data
 
+```{r log_ridership}
+# Transit Ridership
 
-```{r tran_map}
+# Bike Ridership
 
-```
-
-## Bike Data
-
-```{r bike_map}
-# The map of  in 2017
-breaks_quantiles <- classIntervals(tran_rider_17_total$, n = 5, style = "quantile")
-colors <- brewer.pal(n = 5, name = "Blues")
-labels <- paste0(formatC(breaks_quantiles$brks[-length(breaks_quantiles$brks)], format = "f", digits = 0, big.mark = ","), 
-                 " - ", 
-                 formatC(breaks_quantiles$brks[-1], format = "f", digits = 0, big.mark = ","))
-
-ggplot(tran_rider_17_total) +
-  geom_sf(aes(fill = cut(, breaks = breaks_quantiles$brks, include.lowest = TRUE)), color = "transparent") +
-  scale_fill_manual(values = colors,
-                    labels = labels,
-                    name = " (Quantile)") +
-  labs(title = ", 2017") +
-  theme_void() +
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
-        legend.position = c(1, 0.2))+
-  geom_sf(data = , fill = NA, color = "grey", inherit.aes = FALSE) +
-  geom_text(data = , aes(x = lon, y = lat, label = district), size = 1.75,
-            color = "black",check_overlap = TRUE, inherit.aes = FALSE)
-```
-
-## Sociodemographic Data
-
-```{r demographic_map}
 
 ```
 
@@ -646,16 +607,17 @@ ggplot(tran_rider_17_total) +
 ## Simple Regression
 
 ```{r step1}
-## 2019
+rm(list = setdiff(ls(), c("final_19_total_acs", "final_19_period_acs")))
+
 mod.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
 summary(mod.0)
 ```
 
 ## Multiple Regression without Time Period
 
-## correlation plot
-```{r dot cor, warning=FALSE, message=FALSE}
-# Select only numeric variables and remove rows with missing values
+```{r cor_test, warning=FALSE, message=FALSE}
+# Correlation Plot
+## Select only numeric variables and remove rows with missing values
 numericVars <- final_19_total_acs %>%
   st_drop_geometry()%>%
   select_if(is.numeric) %>%  # Select only numeric variables
@@ -665,7 +627,7 @@ ggpairs(numericVars)
 
 summary(final_19_total_acs)
 
-# add log
+## Add log
 numericVars.log <- numericVars%>%
   mutate(log.total_rider_tran = log(total_rider_tran+1),
          log.total_rider_bike = log(total_rider_bike+1),
@@ -681,51 +643,46 @@ colnames(numericVars.log)
 ```
 
 Initial Variable Selection:
-"log.total_rider_tran" "bus_stop"             "pop.den"             
-"commuter.tot"         "white.share"       
-"tran.share"           "veh.ownership"        "medInc"                   
-"employ.rate"          "log.total_rider_bike" "log.bike.share"           "log.job.den"           
+- "total_rider_tran" (log)
+- "total_rider_bike" (log)
+- "bus_stop"
+- "pop.den"             
+- "commuter.tot"
+- "white.share"
+- "bike.share" (log)
+- "tran.share"
+- "job.den" (log) 
+- "veh.ownership"
+- "medInc"                   
+- "employ.rate"
 
 ```{r step2}
 summary(final_19_total_acs)
 
-mod.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + medInc + employ.rate, data = final_19_total_acs)
+mod.1 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den + 1) + white.share + log(bike.share + 1) + tran.share + veh.ownership + medInc + employ.rate, data = final_19_total_acs)
 summary(mod.1)
 vif(mod.1)
 
 ## delete variable from the one with the largest p-value
-mod.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership + employ.rate, data = final_19_total_acs)
-summary(mod.2)
+mod.2 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den + 1) + white.share + log(bike.share + 1) + tran.share + veh.ownership + employ.rate, data = final_19_total_acs)
+summary(mod.2) ## medInc
 vif(mod.2)
 
-mod.3 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den+1) + white.share + log(bike.share+1) + tran.share + veh.ownership, data = final_19_total_acs)
-summary(mod.3)
+mod.3 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + log(job.den + 1) + white.share + log(bike.share + 1) + tran.share + veh.ownership, data = final_19_total_acs)
+summary(mod.3) ## employ.rate
 
-mod.4 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share + veh.ownership, data = final_19_total_acs)
-summary(mod.4)
+mod.4 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share + 1) + tran.share + veh.ownership, data = final_19_total_acs)
+summary(mod.4) ## log(job.den + 1)
 
-mod.5 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share, data = final_19_total_acs)
-summary(mod.5)
-```
-
-## Multiple Regression with Time Period
-
-```{r step3}
-## 2019
-mod.7 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1) + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share, data = final_19_period_acs)
-summary(mod.7)
-vif(mod.7)
+mod.5 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1) + bus_stop + pop.den + commuter.tot + white.share + log(bike.share + 1) + tran.share, data = final_19_total_acs)
+summary(mod.5) ## veh.ownership
 ```
 
 ## Multiple Regression with Time Period (Interaction Term)
 
 ```{r step4}
-## 2019
-mod.8 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1)*time_period_cat + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1) + tran.share , data = final_19_period_acs)
-summary(mod.8)
-plot(mod.8)
+mod.6 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1)*time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share + 1) + tran.share, data = final_19_period_acs)
+summary(mod.6)
+plot(mod.6)
 ```
-
-
-# Next Step
 

@@ -162,14 +162,14 @@ tran_rider <- tran_rider %>%
 
 name_rider <- unique(tran_rider$stop_name) #113
 name_stop <- tran_stop$STATION #170
-not_in_station <- as.data.frame(setdiff(name_rider, name_stop))#station in ridership but not in stop shapefile
+not_in_station <- as.data.frame(setdiff(name_rider, name_stop))#station in ridership but not in stop shapefile -> final 111 stations
+
+tran_stop <- tran_stop %>%
+  filter(LINE != "SILVER") ## Silver Line is BRT
 
 ## Transit Ridership
 tran_rider <- tran_rider %>%
   mutate(time_period = paste(day_type_name, time_period_name, sep = "_"))
-
-tran_stop <- tran_stop %>%
-  filter(LINE != "SILVER") ## Silver Line is BRT
 
 ### Transit Ridership by Time Period
 tran_rider_19_period <- tran_rider %>%
@@ -493,7 +493,10 @@ final_19_total_acs <- final_19_total_bike %>%
               select(tran_stop, total_rider_tran, terminus), by = c("tran_stop")) %>%
   left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
-  st_as_sf()
+  st_as_sf()%>%
+  # aggregate ridership = 1weekday+2weekends -> ridership per day
+  mutate(total_rider_bike = round(total_rider_bike/3, digits = 0),
+         total_rider_tran = round(total_rider_tran/3, digits = 0))
 
 ### add distance factor
 final_19_total_acs <- final_19_total_acs %>%
@@ -530,6 +533,23 @@ final_19_period_acs <- final_19_period_bike %>%
   left_join(., acs.2019.stop, by = c("tran_stop")) %>%
   na.omit() %>%
   st_drop_geometry() %>%
+  # get the ridership per hour for each period
+  mutate(time_hour = case_when(
+    time_period == 'weekday_VERY_EARLY_MORNING'~ 3,
+    time_period == 'weekday_EARLY_AM'~ 1,
+    time_period == 'weekday_AM_PEAK'~ 2,
+    time_period == 'weekday_MIDDAY_BASE'~ 4.5,
+    time_period == 'weekday_MIDDAY_SCHOOL'~ 2.5,
+    time_period == 'weekday_PM_PEAK'~ 2.5,
+    time_period == 'weekday_EVENING'~ 3.5,
+    time_period == 'weekday_LATE_EVENING'~ 2,
+    time_period == 'weekday_NIGHT'~ 3,
+    time_period == 'saturday_OFF_PEAK'~ 24,
+    time_period == 'sunday_OFF_PEAK'~ 24
+    ))%>%
+  mutate(hour_rider_tran = round(total_rider_tran/time_hour, digits = 0),
+         hour_rider_bike = round(total_rider_bike/time_hour, digits = 0))%>%
+  select(-total_rider_bike, -total_rider_tran)%>%
   mutate(time_period_cat = case_when(
     time_period %in% c("saturday_OFF_PEAK", "sunday_OFF_PEAK") ~ "weekend",
     time_period %in% c("weekday_AM_PEAK", "weekday_PM_PEAK") ~ "weekday_peak",
@@ -543,6 +563,35 @@ final_19_period_acs <- final_19_period_bike %>%
 
 
 ## Transit Data
+
+```{r ridership per hour by time period}
+# plot
+final_19_period_acs %>% 
+  mutate(time_period = factor(time_period,
+                              levels = c(
+    'weekday_VERY_EARLY_MORNING',
+    'weekday_EARLY_AM',
+    'weekday_AM_PEAK',
+    'weekday_MIDDAY_BASE',
+    'weekday_MIDDAY_SCHOOL',
+    'weekday_PM_PEAK',
+    'weekday_EVENING',
+    'weekday_LATE_EVENING',
+    'weekday_NIGHT',
+    'saturday_OFF_PEAK',
+    'sunday_OFF_PEAK'
+  )))%>%
+  group_by(time_period)%>%
+  summarize(mean.hour.ridership = mean(hour_rider_tran))%>%
+  ggplot(., aes(x = time_period, y = mean.hour.ridership))+
+  geom_col()+
+  labs(title = "Mean Ridership Per Hour by Time Period",
+       x = "Time Period",
+       y = "Mean Ridership") +
+  theme_minimal()
+```
+
+
 
 ```{r tran_map}
 
@@ -652,7 +701,7 @@ summary(mod.6)
 
 ```{r step3}
 ## 2019
-mod.7 <- lm(log(total_rider_tran + 1) ~ log(total_rider_bike + 1) + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
+mod.7 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1) + time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
 summary(mod.7)
 vif(mod.7)
 ```
@@ -661,7 +710,7 @@ vif(mod.7)
 
 ```{r step4}
 ## 2019
-mod.8 <- lm(log(total_rider_tran + 1) ~ log(total_rider_bike + 1)*time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
+mod.8 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1)*time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share+1), data = final_19_period_acs)
 summary(mod.8)
 ```
 

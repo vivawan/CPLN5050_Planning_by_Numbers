@@ -561,9 +561,32 @@ final_19_period_acs <- final_19_period_bike %>%
 
 ## Ridership by Time Period
 
-```{r ridership per hour by time period}
+```{r ridership per hour by time period, fig.height=5.5, fig.width=7}
 # Before
-
+tran_rider_19_period %>% 
+  mutate(time_period = factor(time_period,
+                              levels = c(
+    'weekday_VERY_EARLY_MORNING',
+    'weekday_EARLY_AM',
+    'weekday_AM_PEAK',
+    'weekday_MIDDAY_BASE',
+    'weekday_MIDDAY_SCHOOL',
+    'weekday_PM_PEAK',
+    'weekday_EVENING',
+    'weekday_LATE_EVENING',
+    'weekday_NIGHT',
+    'saturday_OFF_PEAK',
+    'sunday_OFF_PEAK'
+  )))%>%
+  group_by(time_period)%>%
+  summarize(mean.tran.ridership = mean(total_rider_tran))%>%
+  ggplot(., aes(x = time_period, y = mean.tran.ridership))+
+  geom_col(color = "black", fill = "grey", width = 0.65) +
+  labs(x = "", y = "") +
+  geom_hline(yintercept = 0, size = 0.6, color = "black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 8))
 
 # After
 final_19_period_acs %>% 
@@ -584,17 +607,24 @@ final_19_period_acs %>%
   group_by(time_period)%>%
   summarize(mean.hour.ridership = mean(hour_rider_tran))%>%
   ggplot(., aes(x = time_period, y = mean.hour.ridership))+
-  geom_col()+
-  labs(title = "Mean Ridership Per Hour by Time Period",
-       x = "Time Period",
-       y = "Mean Ridership") +
-  theme_minimal()
+  geom_col(color = "black", fill = "grey", width = 0.65) +
+  labs(x = "", y = "") +
+  geom_hline(yintercept = 0, size = 0.6, color = "black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 8))
 ```
 
 ## Log Transformation of Ridership Data
 
 ```{r log_ridership}
 # Transit Ridership
+ggplot(., aes(x = time_period, y = mean.hour.ridership))+
+  geom_col()+
+  labs(title = "Mean Ridership Per Hour by Time Period",
+       x = "Time Period",
+       y = "Mean Ridership") +
+  theme_minimal()
 
 # Bike Ridership
 

@@ -663,6 +663,22 @@ rm(list = setdiff(ls(), c("final_19_total_acs", "final_19_period_acs")))
 
 mod.0 <- lm(log(total_rider_tran) ~ log(total_rider_bike + 1), data = final_19_total_acs)
 summary(mod.0)
+
+## Summary Table
+final_summary <- final_19_total_acs %>%
+  mutate(log_bike = log(total_rider_bike + 1)) %>%
+  mutate(log_tran = log(total_rider_tran)) %>%
+  mutate(log_bike_commute = log(bike.share + 1)) %>%
+  summarise(across(c(total_rider_tran, log_tran, total_rider_bike, log_bike, bus_stop, pop.den, white.share, commuter.tot, log_bike_commute, tran.share),
+                   list(maximum = ~ max(., na.rm = TRUE),
+                        minimum = ~ min(., na.rm = TRUE),
+                        mean = ~ mean(., na.rm = TRUE),
+                        standard_deviation = ~ sd(., na.rm = TRUE)),
+                   .names = "{.col}:{.fn}")) %>%
+  pivot_longer(cols = everything(), names_to = c("variables", "statistic"),
+               names_sep = ":", values_to = "value") %>%
+  mutate(value = round(value, digits = 2)) %>%
+  pivot_wider(names_from = statistic, values_from = value)
 ```
 
 ## Multiple Regression without Time Period
@@ -733,6 +749,7 @@ summary(mod.5) ## veh.ownership
 ## Multiple Regression with Time Period (Interaction Term)
 
 ```{r step4}
+vif(mod.5)
 mod.6 <- lm(log(hour_rider_tran + 1) ~ log(hour_rider_bike + 1)*time_period_cat + bus_stop + pop.den + commuter.tot + white.share + log(bike.share + 1) + tran.share, data = final_19_period_acs)
 summary(mod.6)
 plot(mod.6)

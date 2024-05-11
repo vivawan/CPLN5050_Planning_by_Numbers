@@ -669,7 +669,8 @@ final_summary <- final_19_total_acs %>%
   mutate(log_bike = log(total_rider_bike + 1)) %>%
   mutate(log_tran = log(total_rider_tran)) %>%
   mutate(log_bike_commute = log(bike.share + 1)) %>%
-  summarise(across(c(total_rider_tran, log_tran, total_rider_bike, log_bike, bus_stop, pop.den, white.share, commuter.tot, log_bike_commute, tran.share),
+  mutate(log_job = log(job.den + 1)) %>%
+  summarise(across(c(total_rider_tran, log_tran, total_rider_bike, log_bike, bus_stop, pop.den, log_job, medInc, employ.rate, white.share, commuter.tot, log_bike_commute, tran.share, veh.ownership),
                    list(maximum = ~ max(., na.rm = TRUE),
                         minimum = ~ min(., na.rm = TRUE),
                         mean = ~ mean(., na.rm = TRUE),
